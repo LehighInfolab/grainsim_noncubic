@@ -63,10 +63,16 @@ public:
 					std::string word;
 					ss >> word; // skip "DIMENSIONS"
 					ss >> word;
-
-					coord_t dim = std::stoi(word) - 1;
-					new_cube = new lattice_t(dim);
-
+					//vtk header format: DIMENSIONS 151 151 151 
+					coord_t dim_x = std::stoi(word) -1;
+					ss >> word;
+					coord_t dim_y = std::stoi(word) -1;
+					ss >> word;
+					coord_t dim_z = std::stoi(word) -1;
+					std::cout << "vtk x, y, z: " << dim_x << ", " << dim_y << ", " << dim_z << std::endl;
+					//new_cube = new lattice_t(dim);
+					// updated constructor
+					new_cube = new lattice_t(dim_x, dim_y, dim_z);
 					++load_state;
 				}
 				break;
@@ -111,26 +117,26 @@ public:
 		std::cout << "Writing to " << fname << std::endl;
 
 		vtkfile << "# vtk DataFile Version 2.0\n data set from May6 1\nASCII\nDATASET RECTILINEAR_GRID\n";
-		vtkfile << "DIMENSIONS " << (lattice->side_length + 1) << " " << (lattice->side_length + 1) << " " << (lattice->side_length + 1) << " \n";
+		vtkfile << "DIMENSIONS " << (lattice->side_length_x + 1) << " " << (lattice->side_length_y + 1) << " " << (lattice->side_length_z + 1) << " \n";
 
-		vtkfile << "X_COORDINATES " << (lattice->side_length + 1) << " Float \n";
-		for (size_t i = 0; i < lattice->side_length + 1; ++i)
+		vtkfile << "X_COORDINATES " << (lattice->side_length_x + 1) << " Float \n";
+		for (size_t i = 0; i < lattice->side_length_x + 1; ++i)
 		{
 			vtkfile << i << '\n';
 		}
-		vtkfile << "Y_COORDINATES " << (lattice->side_length + 1) << " Float \n";
-		for (size_t i = 0; i < lattice->side_length + 1; ++i)
+		vtkfile << "Y_COORDINATES " << (lattice->side_length_y + 1) << " Float \n";
+		for (size_t i = 0; i < lattice->side_length_y + 1; ++i)
 		{
 			vtkfile << i << '\n';
 		}
-		vtkfile << "Z_COORDINATES " << (lattice->side_length + 1) << " Float \n";
-		for (size_t i = 0; i < lattice->side_length + 1; ++i)
+		vtkfile << "Z_COORDINATES " << (lattice->side_length_z + 1) << " Float \n";
+		for (size_t i = 0; i < lattice->side_length_z + 1; ++i)
 		{
 			vtkfile << i << '\n';
 		}
-		vtkfile << "CELL_DATA " << (lattice->side_length * lattice->side_length * lattice->side_length) << " \n";
+		vtkfile << "CELL_DATA " << (lattice->side_length_x * lattice->side_length_y * lattice->side_length_z) << " \n";
 		vtkfile << "SCALARS GrainIDs int  1\nLOOKUP_TABLE default\n";
-		for (size_t i = 0; i < (lattice->side_length * lattice->side_length * lattice->side_length); ++i)
+		for (size_t i = 0; i < (lattice->side_length_x * lattice->side_length_y * lattice->side_length_z); ++i)
 		{
 			vtkfile << lattice->voxels[i].spin << '\n';
 		}
@@ -160,9 +166,16 @@ public:
 				std::istringstream ss(line);
 				std::string word;
 				ss >> word;
-				coord_t dim = std::stoi(word);
-				new_cube = new lattice_t(dim);
-
+				//ph header format:      256     256     1024
+				coord_t dim_x = std::stoi(word);
+				ss >> word;
+				coord_t dim_y = std::stoi(word);
+				ss >> word;
+				coord_t dim_z = std::stoi(word);
+				std::cout << "x, y, z: " << dim_x << ", " << dim_y << ", " << dim_z << std::endl;
+				//new_cube = new lattice_t(dim);
+				// updated constructor
+				new_cube = new lattice_t(dim_x, dim_y, dim_z);
 				++load_state;
 
 				break;
@@ -218,20 +231,20 @@ public:
 	{
 		std::cout << "Scaling lattice..." << std::endl;
 
-		lattice_t *new_cube = new lattice_t(lat->side_length * multiplier);
+		lattice_t *new_cube = new lattice_t(lat->side_length_x * multiplier, lat->side_length_y * multiplier, lat->side_length_z * multiplier);
 
-		for (int z = 0; z < new_cube->side_length; ++z)
-			for (int y = 0; y < new_cube->side_length; ++y)
-				for (int x = 0; x < new_cube->side_length; ++x)
+		for (int z = 0; z < new_cube->side_length_z; ++z)
+			for (int y = 0; y < new_cube->side_length_y; ++y)
+				for (int x = 0; x < new_cube->side_length_x; ++x)
 				{
 					new_cube->voxels[
 							(x) +
-							(y) * new_cube->side_length +
-							(z) * new_cube->side_length * new_cube->side_length].spin
+							(y) * new_cube->side_length_y +
+							(z) * new_cube->side_length_z * new_cube->side_length_z].spin
 						= lat->voxels[
 							(int)(x / multiplier) +
-							(int)(y / multiplier) * lat->side_length +
-							(int)(z / multiplier) * lat->side_length * lat->side_length].spin;
+							(int)(y / multiplier) * lat->side_length_y +
+							(int)(z / multiplier) * lat->side_length_z * lat->side_length_z].spin;
 				}
 
 		if (init)

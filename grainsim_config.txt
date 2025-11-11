@@ -1,5 +1,7 @@
 # .vtk or .ph that contains the initial state.
-INITIAL_STATE_FILE = out/Seed_0000_0000000.ph
+
+#INITIAL_STATE_FILE = out/Seed_0000_0000000.ph
+INITIAL_STATE_FILE = out/0Seed_DiffusionCouple_T1_0000_0000000.ph
 # The folder to output VTK files to (make sure this ends with / or \\).
 OUTPUT_FOLDER = out/
 # The prefix to use when creating VTK files.
@@ -15,15 +17,15 @@ PERIODIC_CHECKPOINT_INTERVAL = 1000000
 MAX_TIMESTEP = 500000000
 
 # The mobility for non-transformed boundaries.
-DEFAULT_MOBILITY = 0.01
+DEFAULT_MOBILITY = 0.1
 # The mobility for transformed boundaries.
-TRANSITIONED_MOBILITY = 0.04
+TRANSITIONED_MOBILITY = 1.0
 # How often to transition boundaries (in timesteps).
 TRANSITION_INTERVAL = 500000
 # How many boundaries to transition at a time.
-TRANSITION_COUNT = 50
+TRANSITION_COUNT = 100
 # What percent of transitions to propagate vs. random flip.
-PROPAGATION_CHANCE = 0.5
+PROPAGATION_CHANCE = 0.3
 
 # Whether or not to use the experimental "sweeping"/"potential energy" system.
 USE_POTENTIAL_ENERGY = true

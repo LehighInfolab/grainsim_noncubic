@@ -22,9 +22,9 @@ struct config_t
 	double propagation_chance = 0.95;
 	bool use_potential_energy = false;
 	int const_grain_count = 0;
-	bool log_transitions = false;
+	bool log_transitions = true;
 	double propagation_ratio = 0;
-	bool generate_analysis_files = false;
+	bool generate_analysis_files = true;
 
 	void checkpoints_to_vector(std::vector<double> *checkpoint_vector)
 	{

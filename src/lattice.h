@@ -25,6 +25,7 @@ William E. Frazier
 #include <random>
 #include <set>
 #include <fstream>
+#include <algorithm>
 
 // An object representing a voxel lattice.
 class lattice_t
@@ -45,6 +46,7 @@ private:
 	// Build the neighbor offset and e-term lookup tables.
 	void build_lookup_tables()
 	{
+		std::cout << "Building look up tables..." << std::endl;
 		// "Neighbors" of a voxel are all 26 surrounding voxels.
 		// Neighbors on a corner have the same "neighborness" as a neighbor sharing a face, even if technically further away.
 		// Don't ask me if this is correct... this is how Holm's Fortran code did it.
@@ -65,6 +67,10 @@ private:
 		{
 			PROB_ETERM_LOOKUP[de + NEIGH_COUNT] = exp((-de) / (kT));
 		}
+		std::cout << "Look up table x: " << NEIGHBOR_LOOKUP_X << std::endl;
+		std::cout << "Look up table y: " << NEIGHBOR_LOOKUP_X << std::endl;
+		std::cout << "Look up table z: " << NEIGHBOR_LOOKUP_X << std::endl;
+		//sleep(5);
 	}
 
 	// Get the mobility between two grains.
@@ -122,6 +128,7 @@ private:
 	// Clear and recalculate the overall activity for a voxel.
 	void rebuild_voxel_activity(coord_t x, coord_t y, coord_t z)
 	{
+		//std::cout << "Rebuilding voxel activity..." << std::endl;
 		voxel_t *v = voxel_at(x, y, z);
 		// Expand on voxel operations in comments.!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		for (char n = 0; n < NEIGH_COUNT; ++n)
@@ -135,9 +142,9 @@ private:
 	// Recalculate the activity for a single neighbor of a voxel.
 	void rebuild_neighbor_activity(coord_t x, coord_t y, coord_t z, size_t nspin)
 	{
-		x = (x + side_length) % side_length;
-		y = (y + side_length) % side_length;
-		z = (z + side_length) % side_length;
+		x = (x + side_length_x) % side_length_x;
+		y = (y + side_length_y) % side_length_y;
+		z = (z + side_length_z) % side_length_z;
 
 		voxel_t *v = voxel_at(x, y, z);
 
@@ -170,24 +177,24 @@ private:
 	// Probabilistically find a voxel that can be flipped based on a random activity (1..system_activity).
 	void find_voxel(activ_t desired_activ, coord_t *outx, coord_t *outy, coord_t *outz)
 	{
-		activ_tree->get_voxel_from_sum_activity(outx, outy, outz, desired_activ, voxels, side_length);
+		activ_tree->get_voxel_from_sum_activity(outx, outy, outz, desired_activ, voxels, side_length_x, side_length_y, side_length_z);
 	}
 
 	void from_index(size_t index, coord_t *outx, coord_t *outy, coord_t *outz)
 	{
 		size_t temp;
 
-		temp = index % side_length;
+		temp = index % side_length_x;
 		*outx = temp;
 		index -= temp;
-		index /= side_length;
+		index /= side_length_x;
 
-		temp = index % side_length;
+		temp = index % side_length_y;
 		*outy = temp;
 		index -= temp;
-		index /= side_length;
+		index /= side_length_y;
 
-		temp = index % side_length;
+		temp = index % side_length_z;
 		*outz = temp;
 	}
 
@@ -195,8 +202,11 @@ private:
 	std::uniform_real_distribution<> rng_dis;
 
 public:
-	// The length of one side of the lattice.
-	coord_t side_length;
+	// The length of x side of the lattice.
+	coord_t side_length_x;
+	coord_t side_length_y;
+	coord_t side_length_z;
+	//coord_t side_length;
 	// An array of all voxels within the lattice.
 	voxel_t *voxels;
 	// A counter on the total number of flips the simulation has conducted so far.
@@ -219,10 +229,13 @@ public:
 	}
 
 	// Constructor for a lattice object.
-	lattice_t(coord_t dim_size)
+	lattice_t(coord_t dim_x, coord_t dim_y, coord_t dim_z)
 	{
-		side_length = dim_size;
-		voxels = new voxel_t[side_length * side_length * side_length];
+		side_length_x = dim_x;
+		side_length_y = dim_y;
+		side_length_z = dim_z;
+
+		voxels = new voxel_t[side_length_x * side_length_y * side_length_z];
 		total_flips = 0;
 
 		default_mobility = 0.002;
@@ -234,7 +247,10 @@ public:
 		// The purpose is to prevent unexpected behavior from integer division (which I spent hours trying to debug...).
 		// It results in more memory usage, but (hopefully) shouldn't be a huge problem.
 		size_t next_highest_power_of_2 = 1;
-		while (next_highest_power_of_2 < side_length)
+		// update: find the largest side length
+		coord_t max_side_length = std::max({side_length_x, side_length_y, side_length_z});
+		std::cout << "Max side length: " << max_side_length << std::endl;
+		while (next_highest_power_of_2 < max_side_length)
 		{
 			next_highest_power_of_2 *= 2;
 		}
@@ -243,7 +259,7 @@ public:
 		rng_gen = std::mt19937(1337);
 		rng_dis = std::uniform_real_distribution<>(0.0, 1.0);
 
-		std::cout << "Created lattice of size " << dim_size << std::endl;
+		std::cout << "Created lattice of size " << side_length_x << ", " << side_length_y << ", " << side_length_z  << std::endl;
 	}
 	~lattice_t()
 	{
@@ -286,20 +302,20 @@ public:
 	// Get the voxel index at the given coordinates (wraps).
 	size_t index_at(coord_t x, coord_t y, coord_t z)
 	{
-		x = (x + side_length) % side_length;
-		y = (y + side_length) % side_length;
-		z = (z + side_length) % side_length;
+		x = (x + side_length_x) % side_length_x;
+		y = (y + side_length_y) % side_length_y;
+		z = (z + side_length_z) % side_length_z;
 
-		return (x + (y * side_length) + (z * side_length * side_length));
+		return (x + (y * side_length_x) + (z * side_length_x * side_length_y));
 	}
 	// Get the voxel at the given coordinates (wraps).
 	voxel_t *voxel_at(coord_t x, coord_t y, coord_t z)
 	{
-		x = (x + side_length) % side_length;
-		y = (y + side_length) % side_length;
-		z = (z + side_length) % side_length;
+		x = (x + side_length_x) % side_length_x;
+		y = (y + side_length_y) % side_length_y;
+		z = (z + side_length_z) % side_length_z;
 
-		return &voxels[x + (y * side_length) + (z * side_length * side_length)];
+		return &voxels[x + (y * side_length_x) + (z * side_length_x * side_length_y)];
 	}
 	// Get the n'th neighbor of the voxel at the given coordinates.
 	voxel_t *neighbor_at(coord_t x, coord_t y, coord_t z, char n)
@@ -316,9 +332,9 @@ public:
 
 		std::unordered_set<spin_t> spins;
 
-		for(coord_t z = 0; z < side_length; ++z)
-			for (coord_t y = 0; y < side_length; ++y)
-				for (coord_t x = 0; x < side_length; ++x)
+		for(coord_t z = 0; z < side_length_z; ++z)
+			for (coord_t y = 0; y < side_length_y; ++y)
+				for (coord_t x = 0; x < side_length_x; ++x)
 				{
 					voxel_at(x, y, z)->index = index_at(x, y, z);
 					if (grain_count <= 0) spins.insert(voxel_at(x, y, z)->spin);
@@ -330,7 +346,8 @@ public:
 		{
 			grain_count = spins.size();
 		}
-
+		std::cout << "Grain count: " <<  grain_count << std::endl;
+		std::cout << "spins count: " <<  spins.size() << std::endl;
 		std::cout << "Done initializing." << std::endl;
 	}
 
@@ -370,14 +387,14 @@ public:
 private:
 	void transition_boundary(boundary_t *boundary)
 	{
+		cross_zplane(boundary);
 		boundary_tracker.mark_transformed(boundary);
-
+		//std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
 		// Update voxel activities and octree for all voxels on the boundary.
 		for (auto bvox_iter = boundary->boundary_voxel_indices.begin(); bvox_iter != boundary->boundary_voxel_indices.end(); ++bvox_iter)
 		{
 			coord_t x, y, z;
 			from_index(*bvox_iter, &x, &y, &z);
-
 			rebuild_voxel_activity(x, y, z);
 			for (char n = 0; n < NEIGH_COUNT; ++n)
 			{
@@ -392,6 +409,53 @@ private:
 	}
 
 public:
+	// Add-on: Check if a boundary cross the z-plane.
+	// It needs: 1. a pair of adjacent voxels from different grain
+	// 2. the pair is adjacent to z-boundary
+	bool cross_zplane(boundary_t *boundary, int Z_TOLERANCE=1)
+	{
+		//std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
+		// Filter z coordinates in the set by z-plane.
+		std::unordered_set<int> filtered_a, filtered_b;
+		for (auto bvox_iter = boundary->boundary_voxel_indices.begin(); bvox_iter != boundary->boundary_voxel_indices.end(); ++bvox_iter)
+		{
+			coord_t x, y, z;
+			from_index(*bvox_iter, &x, &y, &z);
+			if(abs(z - side_length_z) <= Z_TOLERANCE || abs(z-0) <= Z_TOLERANCE){
+				//std::cout << "x, y, z voxel coordinates: " << x  <<", "  << y<<", " << z << std::endl;
+				//std::cout << "Current voxel index: " << index_at(x,y,z) << " and spin index : " << voxel_at(x, y, z)->spin <<std::endl;
+				if (voxel_at(x, y, z)->spin == boundary->a_spin) {
+					filtered_a.insert(*bvox_iter);
+				}else{
+					filtered_b.insert(*bvox_iter);
+				}
+			}
+		}
+		// for each voxel in the blue set, for each of its neighbor off set
+		for (auto filtered_vox : filtered_a) 
+		{
+			coord_t fx, fy, fz;
+			from_index(filtered_vox, &fx, &fy, &fz);
+			for (int z = -1; z <= 1; ++z)
+				for (int y = -1; y <= 1; ++y)
+					for (int x = -1; x <= 1; ++x)
+					{
+						if (x == 0 && y == 0 && z == 0) continue;
+						if (filtered_b.count(index_at(fx+x, fy+y, fz+z))){
+							// std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
+							// std::cout << "x, y, z voxel coordinates: " <<fx  <<", "  << fy<<", " << fz << std::endl; 
+							// std::cout << "Found: " << fx+x  <<", "<<  fy+y <<", " << fz+z << std::endl;
+							return true;
+						}
+					}
+		}
+		return false;
+
+		// Filter z coordinates in the set by z-plane.
+		// get unordered_set for each two grains. call red and blue
+		// for each voxel in the blue set, for each of its neighbor off set
+		// find if the red set contains the neighbor. If found, return true.
+	}
 
 	// Transitition a certain number of random grain boundaries.
 	// Yes, I know this function is a mess. It can probably be simplified a bit...
@@ -424,7 +488,6 @@ public:
 		// the overall collections of untransformed and transformed boundaries are combined, each "index" refers
 		// to the i'th instance of that type of boundary. For example, if flip_indices contains the value "3", that
 		// tells the algorithm to flip the 4th (because of zero-indexing) untransformed boundary that it comes across.
-
 		size_t index;
 		for (size_t i = 0; i < flip_count; ++i)
 		{
@@ -434,6 +497,16 @@ public:
 			} while (flip_indices.find(index) != flip_indices.end());
 			flip_indices.insert(index);
 		}
+		// debug purpose
+		// std::cout << "Flip indices: " << std::endl;
+		// for (auto flip_index : flip_indices) {
+		// 	std::cout << "index: " << flip_index  << "   ";
+		// 	// convert the index to x,y, and z coordinates. Check if the z boundary modify the side length.
+		// 	// check if the flip pass the z boundary. Convert the flip index to boundary
+
+		// }
+		// std::cout << "\n Total flip indices: " << flip_indices.size() << std::endl;
+
 		for (size_t i = 0; i < propagate_count; ++i)
 		{
 			do
@@ -442,7 +515,16 @@ public:
 			} while (propagate_indices.find(index) != propagate_indices.end());
 			propagate_indices.insert(index);
 		}
-
+		// debug purpose
+		// std::cout << "Propagate indices: " << std::endl;
+		// for (auto propagate_index : propagate_indices) {
+		// 	std::cout << "index: " << propagate_index  << "   "; 
+		// 	coord_t x, y, z;
+		// 	from_index(propagate_index, &x, &y, &z);
+		// 	std::cout << "x: " << x << ", y: " <<y  << ", z: "<< z  << "   \n"; 
+		// 	// convert the index to x,y, and z coordinates. Check if the z boundary modify the side length.
+		// }
+		// std::cout << "\n Total propagate indices: " << propagate_indices.size() << std::endl;
 		size_t num_random_propagated = 0, num_random_flipped = 0, num_poteng_propagated = 0;
 
 		bool end_loop = false;
@@ -454,8 +536,12 @@ public:
 		// Iterate over the entire boundary map.
 		for (auto sm_iter = boundary_tracker.boundary_map.begin(); sm_iter != boundary_tracker.boundary_map.end(); ++sm_iter)
 		{
+			// debug
+			//std::cout << "Sm_iter: " << &sm_iter << std::endl;
+			//std::cout << "Untrans_count: " << untrans_count << std::endl;
 			for (auto lg_iter = sm_iter->second.begin(); lg_iter != sm_iter->second.end(); ++lg_iter)
 			{
+				//std::cout << "lg_iter: " << lg_iter << std::endl;
 				boundary_t *boundary = lg_iter->second;
 				// If the boundary is transformed, check if we should propagate from it.
 				if (boundary->transformed)
@@ -544,8 +630,12 @@ public:
 				// If the boundary is untransformed, check if we should flip it.
 				else if (!boundary->transformed && flip_iter != flip_indices.end())
 				{
+					if (!cross_zplane(boundary)) {
+						continue;
+					}
 					if (*flip_iter == untrans_count)
 					{
+						//std::cout << "Flip iter: " << *flip_iter << std::endl;
 						transition_boundary(boundary);
 
 						++num_random_flipped;

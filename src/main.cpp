@@ -82,16 +82,18 @@ int main(int argc, char *argv[])
 		// Transition some boundaries if applicable.
 		if (transition_duration >= cfg.transition_interval && cfg.transition_count > 0)
 		{
+			std::cout << "Transition some boundaries if applicable." << std::endl;
 			if (cfg.log_transitions) cube->set_log_timestep(timestep);
 
 			cube->transition_boundaries(cfg.transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
 
 			transition_duration = 0;
 		}
-
+		//std::cout << "Current Timestep: " << timestep << std::endl;
 		// Check if VTK should be generated.
 		if (checkpoints.size() > 0 && curr_checkpoint < checkpoints.size() && timestep >= checkpoints[curr_checkpoint]) // The current timestep is an explicit checkpoint.
 		{
+			std::cout << "Check if VTK should be generated." << std::endl;
 			std::stringstream ss;
 			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
 			vtk::to_vtk(ss.str().c_str(), cube);

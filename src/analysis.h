@@ -16,9 +16,9 @@ private:
 	spin_t calculate_max_grains()
 	{
 		spin_t max_so_far = 0;
-		for (coord_t z = 0; z < curr_cube->side_length; ++z)
-			for (coord_t y = 0; y < curr_cube->side_length; ++y)
-				for (coord_t x = 0; x < curr_cube->side_length; ++x)
+		for (coord_t z = 0; z < curr_cube->side_length_z; ++z)
+			for (coord_t y = 0; y < curr_cube->side_length_y; ++y)
+				for (coord_t x = 0; x < curr_cube->side_length_x; ++x)
 				{
 					spin_t curr_spin = curr_cube->voxel_at(x, y, z)->spin;
 					if (curr_spin > max_so_far) max_so_far = curr_spin;
@@ -104,9 +104,9 @@ private:
 		sparse_info_matrix.clear();
 		vol_map.clear();
 
-		for(coord_t z = 0; z < curr_cube->side_length; ++z)
-			for (coord_t y = 0; y < curr_cube->side_length; ++y)
-				for (coord_t x = 0; x < curr_cube->side_length; ++x)
+		for(coord_t z = 0; z < curr_cube->side_length_z; ++z)
+			for (coord_t y = 0; y < curr_cube->side_length_y; ++y)
+				for (coord_t x = 0; x < curr_cube->side_length_x; ++x)
 				{
 					spin_t
 						curr_id = curr_cube->voxel_at(x, y, z)->spin,

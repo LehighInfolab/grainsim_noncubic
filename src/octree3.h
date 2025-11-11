@@ -60,8 +60,10 @@ public:
 
 	// Returns xyz position of the voxel where the sum of all previous voxel activities (when walking the lattice) is equal to rand_activ.
 	// TODO: Try to get rid of voxel_list dependancy.
-	void get_voxel_from_sum_activity(coord_t *x, coord_t *y, coord_t *z, activ_t rand_activ, voxel_t *voxel_list, coord_t true_side_length)
+	void get_voxel_from_sum_activity(coord_t *x, coord_t *y, coord_t *z, activ_t rand_activ, voxel_t *voxel_list, 
+		coord_t true_side_length_x, coord_t true_side_length_y, coord_t true_side_length_z)
 	{
+		//std::cout << "Get Voxel from sum activity..." << std::endl;
 		// Reset positional pointer to root node.
 		reset_pos();
 
@@ -83,11 +85,11 @@ public:
 		// Iterate over all voxels contained within leaf node.
 		// In some cases we may want leaf nodes to contain more than one voxel, which would make these loops necessary.
 		size_t vindex = 0;
-		for(*z = parent_z + offset_z; *z < std::min(parent_z + offset_z + node_size, true_side_length); ++*z)
-			for (*y = parent_y + offset_y; *y < std::min(parent_y + offset_y + node_size, true_side_length); ++*y)
-				for (*x = parent_x + offset_x; *x < std::min(parent_x + offset_x + node_size, true_side_length); ++*x)
+		for(*z = parent_z + offset_z; *z < std::min(parent_z + offset_z + node_size, true_side_length_z); ++*z)
+			for (*y = parent_y + offset_y; *y < std::min(parent_y + offset_y + node_size, true_side_length_y); ++*y)
+				for (*x = parent_x + offset_x; *x < std::min(parent_x + offset_x + node_size, true_side_length_x); ++*x)
 				{
-					vindex = *x + (*y * true_side_length) + (*z * true_side_length * true_side_length);
+					vindex = *x + (*y * true_side_length_x) + (*z * true_side_length_x * true_side_length_y);
 					if (voxel_list[vindex].activity >= rand_activ)
 					{
 						return;
