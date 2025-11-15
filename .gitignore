@@ -1,1 +1,11 @@
-./out
+# Ignore all output file 
+/out*
+
+# ignore seeds 
+/mc_seeds
+*.zip
+*.7z
+
+# ignore compiled and config
+*.out
+*.txt

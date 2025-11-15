@@ -35,10 +35,16 @@ struct config_t
 			checkpoint_vector->push_back(std::stoul(word));
 		}
 	}
-
-	void load_config()
+	// Modify for slurm batch process with input and output override
+	void load_config(const std::string &config_path, const std::string &initial_state_override, const std::string &output_override)
 	{
-		std::ifstream cfgfile("grainsim_config.txt");
+		//std::ifstream cfgfile("grainsim_config.txt");
+		std::ifstream cfgfile(config_path);
+		if (!cfgfile) {
+			std::cerr << "Error: could not open config file \"" << config_path << "\"\n";
+			std::exit(1);
+		}
+		
 		std::string line;
 		while (std::getline(cfgfile, line))
 		{
@@ -127,6 +133,21 @@ struct config_t
 			else
 			{
 				std::cout << "Warning: Unknown config key \"" << key << "\"." << std::endl;
+			}
+		}
+
+		// Override with function config
+		if (!initial_state_override.empty()) {
+			initial_state_path = initial_state_override;
+		}
+		if (!output_override.empty()) {
+			output_folder = output_override;
+		}
+		// make sure ends with slash
+		if (!output_folder.empty()) {
+			char last = output_folder.back();
+			if (last != '/' && last != '\\'){
+				output_folder.push_back('/');
 			}
 		}
 	}

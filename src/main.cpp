@@ -15,12 +15,45 @@
 
 // cd C:\Stuff\School\summer 2023\grainsim
 // g++ -O3 CPPGrainSim/main.cpp -o grainsim.out -static
+void print_usage()
+{
+    std::cerr << "Usage:\n"
+			<< "  grainsim [--config <file>] [--initial <seed.ph>] [--output <folder>]\n\n"
+			<< "Options:\n"
+			<< "  --config <file>    Path to config file (default: grainsim_config.txt)\n"
+			<< "  --initial <path>   Override INITIAL_STATE_FILE from config\n"
+			<< "  --output <path>    Override OUTPUT_FOLDER from config\n"
+			<< std::endl;
+}
+
 
 int main(int argc, char *argv[])
 {
+	// add on for params config 
+	std::string config_path = "grainsim_config.txt";
+	std::string init_override;
+	std::string out_override;
+	for(int i = 1; i < argc; ++i) {
+		std::string arg = argv[i];
+		// config file path
+		if (arg == "--config" && i+1 < argc) {
+			config_path = argv[++i];
+		}
+		else if (arg == "--initial" && i+1 < argc) {
+			init_override = argv[++i];
+		}
+		else if (arg == "--output" && i+1 < argc) {
+			out_override = argv[++i];
+		}
+		else {
+			std::cerr << "Unknown or incomplete argument: " << arg << "\n\n";
+			print_usage();
+			std::exit(1);
+		}
+	}
 	// Load the config file.
 	config_t cfg;
-	cfg.load_config();
+	cfg.load_config(config_path, init_override, out_override);
 
 	// Create the lattice from file.
 	lattice_t *cube;
