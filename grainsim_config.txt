@@ -1,7 +1,9 @@
 # .vtk or .ph that contains the initial state.
 
 #INITIAL_STATE_FILE = out/Seed_0000_0000000.ph
-INITIAL_STATE_FILE = out/0Seed_DiffusionCouple_T1_0000_0000000.ph
+#INITIAL_STATE_FILE = mc_seeds/0Seed256-256-256_T1_0000_0000000.ph
+INITIAL_STATE_FILE = mc_seeds/0Seed256-256-1024_T1_0000_0000000.ph
+
 # The folder to output VTK files to (make sure this ends with / or \\).
 OUTPUT_FOLDER = out/
 # The prefix to use when creating VTK files.
