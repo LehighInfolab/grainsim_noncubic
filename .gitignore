@@ -1,1 +1,7 @@
 ./out
+*.txt
+
+# ignore sol output 
+*.out
+*.sh
+*.txt
