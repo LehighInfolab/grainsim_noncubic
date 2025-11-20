@@ -9,3 +9,6 @@
 # ignore compiled and config
 *.out
 *.txt
+
+# ignore shell script from sol 
+*.sh
