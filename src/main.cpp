@@ -1,4 +1,5 @@
 // (c) 2023 Benjamin Zalatan Productions
+// Extended and modified by Surui Huang, 2025
 // Keep circulating the tapes
 
 #include <iostream>
@@ -81,6 +82,7 @@ int main(int argc, char *argv[])
 	cube->default_mobility = cfg.default_mobility;
 	cube->transitioned_mobility = cfg.transitioned_mobility;
 	cube->grain_count = cfg.const_grain_count;
+	cube->z_propagation_plane = cfg.z_propagation_plane;
 	cube->init();
 
 	// Generate the checkpoint list.
