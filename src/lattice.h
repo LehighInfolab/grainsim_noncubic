@@ -105,6 +105,7 @@ private:
 
 		return found ? output : NO_DELTA_E_NEIGHBOR;
 	}
+
 	// Get the probability of a voxel flipping to a new spin.
 	// Calculated from Eq. 4.2 on page 42 of Frazier PhD thesis.
 	activ_t get_prob(coord_t x, coord_t y, coord_t z, size_t new_spin)
@@ -207,6 +208,8 @@ public:
 	coord_t side_length_y;
 	coord_t side_length_z;
 	//coord_t side_length;
+	int z_propagation_plane;
+
 	// An array of all voxels within the lattice.
 	voxel_t *voxels;
 	// A counter on the total number of flips the simulation has conducted so far.
@@ -242,6 +245,9 @@ public:
 		transitioned_mobility = 0.04;
 
 		total_flips = transformed_flips = 0;
+
+		// the z_plane that should be set for propagation
+		z_propagation_plane = 0;
 
 		// Make the area managed by the octree have a side length equal to the next power of two after the real side length.
 		// The purpose is to prevent unexpected behavior from integer division (which I spent hours trying to debug...).
@@ -381,13 +387,15 @@ public:
 		flip_voxel(vx, vy, vz, new_spin);
 
 		// This expression is taken from Eq. 20 in Hassold/Holm 1993.
-		return -((double)grain_count - 1) * log(rng(0.01f, 0.99f)) / system_activity();
+		//return -((double)grain_count - 1) * log(rng(0.01f, 0.99f)) / system_activity();
+		// sub for direct compare
+		return -log(rng(0.01f, 0.99f)) / system_activity();
 	}
 
 private:
 	void transition_boundary(boundary_t *boundary)
 	{
-		cross_zplane(boundary);
+		//cross_zplane(boundary);
 		boundary_tracker.mark_transformed(boundary);
 		//std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
 		// Update voxel activities and octree for all voxels on the boundary.
@@ -410,27 +418,45 @@ private:
 
 public:
 	// Add-on: Check if a boundary cross the z-plane.
+	// z_tolerance is for floating points errror
 	// It needs: 1. a pair of adjacent voxels from different grain
 	// 2. the pair is adjacent to z-boundary
-	bool cross_zplane(boundary_t *boundary, int Z_TOLERANCE=1)
+	// revision 1/28/26, adjust to customized z-plane, value should be cfg.z_plane
+	bool cross_zplane(boundary_t *boundary ,int Z_TOLERANCE=1)
 	{
 		//std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
 		// Filter z coordinates in the set by z-plane.
+		// filter_a holds the voxel that's on the boundary
 		std::unordered_set<int> filtered_a, filtered_b;
 		for (auto bvox_iter = boundary->boundary_voxel_indices.begin(); bvox_iter != boundary->boundary_voxel_indices.end(); ++bvox_iter)
 		{
 			coord_t x, y, z;
 			from_index(*bvox_iter, &x, &y, &z);
-			if(abs(z - side_length_z) <= Z_TOLERANCE || abs(z-0) <= Z_TOLERANCE){
-				//std::cout << "x, y, z voxel coordinates: " << x  <<", "  << y<<", " << z << std::endl;
-				//std::cout << "Current voxel index: " << index_at(x,y,z) << " and spin index : " << voxel_at(x, y, z)->spin <<std::endl;
-				if (voxel_at(x, y, z)->spin == boundary->a_spin) {
-					filtered_a.insert(*bvox_iter);
-				}else{
-					filtered_b.insert(*bvox_iter);
+			// Case 1: on both ends, since it wraps around there will be two ends
+			if (z_propagation_plane == 0){
+				if(abs(z - side_length_z) <= Z_TOLERANCE || abs(z-0) <= Z_TOLERANCE){
+					//std::cout << "x, y, z voxel coordinates: " << x  <<", "  << y<<", " << z << std::endl;
+					//std::cout << "Current voxel index: " << index_at(x,y,z) << " and spin index : " << voxel_at(x, y, z)->spin <<std::endl;
+					if (voxel_at(x, y, z)->spin == boundary->a_spin) {
+						filtered_a.insert(*bvox_iter);
+					}else{
+						filtered_b.insert(*bvox_iter);
+					}
 				}
 			}
+			// Case 2: anything in the middle of the grain should not wrap around
+			else{
+				if(abs(z-z_propagation_plane) <= Z_TOLERANCE){
+					if (voxel_at(x, y, z)->spin == boundary->a_spin) {
+						filtered_a.insert(*bvox_iter);
+					}else{
+						filtered_b.insert(*bvox_iter);
+					}
+				}
+			}
+			
 		}
+		// Phase 2:
 		// for each voxel in the blue set, for each of its neighbor off set
 		for (auto filtered_vox : filtered_a) 
 		{
@@ -442,9 +468,9 @@ public:
 					{
 						if (x == 0 && y == 0 && z == 0) continue;
 						if (filtered_b.count(index_at(fx+x, fy+y, fz+z))){
-							// std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
-							// std::cout << "x, y, z voxel coordinates: " <<fx  <<", "  << fy<<", " << fz << std::endl; 
-							// std::cout << "Found: " << fx+x  <<", "<<  fy+y <<", " << fz+z << std::endl;
+							std::cout << "[INFO] Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
+							std::cout << "[INFO] x, y, z voxel coordinates: " <<fx  <<", "  << fy<<", " << fz << std::endl; 
+							std::cout << "[INFO] Found: " << fx+x  <<", "<<  fy+y <<", " << fz+z << std::endl;
 							return true;
 						}
 					}
@@ -465,7 +491,7 @@ public:
 
 		std::set<size_t> flip_indices;
 		std::set<size_t> propagate_indices;
-
+		// what does this do?????
 		boundary_tracker.remove_bad_boundaries();
 
 		if (count > boundary_tracker.total_boundary_count - boundary_tracker.transformed_boundary_count)
@@ -630,6 +656,7 @@ public:
 				// If the boundary is untransformed, check if we should flip it.
 				else if (!boundary->transformed && flip_iter != flip_indices.end())
 				{
+					// REVISION 1/28, test for different planes
 					if (!cross_zplane(boundary)) {
 						continue;
 					}

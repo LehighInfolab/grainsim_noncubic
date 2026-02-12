@@ -1,31 +1,33 @@
 # .vtk or .ph that contains the initial state.
-
-#INITIAL_STATE_FILE = out/Seed_0000_0000000.ph
 INITIAL_STATE_FILE = out/0Seed_DiffusionCouple_T1_0000_0000000.ph
-# The folder to output VTK files to (make sure this ends with / or \\).
-OUTPUT_FOLDER = results/
-# The prefix to use when creating VTK files.
-IDENTIFIER = test
 
-# The timesteps at which to capture VTKs (seperated by spaces).
-# Uncomment to use.
-# CHECKPOINTS = 0 1000000 2000000 3000000 4000000 
+# The folder to output VTK files to (make sure this ends with / or \\).
+OUTPUT_FOLDER = tests/
+
+# The prefix to use when creating VTK files.
+IDENTIFIER = z_test
 
 # How often to capture a VTK file (in timesteps).
-PERIODIC_CHECKPOINT_INTERVAL = 1000000
+PERIODIC_CHECKPOINT_INTERVAL = 200
+
 # The timestep at which to end the simulation.
-MAX_TIMESTEP = 500000000
+MAX_TIMESTEP = 60000
 
 # The mobility for non-transformed boundaries.
-DEFAULT_MOBILITY = 0.1
+DEFAULT_MOBILITY = 0.01
+
 # The mobility for transformed boundaries.
 TRANSITIONED_MOBILITY = 1.0
-# How often to transition boundaries (in timesteps).
-TRANSITION_INTERVAL = 500000
-# How many boundaries to transition at a time.
-TRANSITION_COUNT = 100
+
+# How often to transition boundaries (in timesteps). 
+# Nucleation Interval (in MCS)
+TRANSITION_INTERVAL = 200
+
+# Nucleation Rate (in GBs per "interval" MCS)
+TRANSITION_COUNT = 0200
+
 # What percent of transitions to propagate vs. random flip.
-PROPAGATION_CHANCE = 0.3
+PROPAGATION_CHANCE = 0
 
 # Whether or not to use the experimental "sweeping"/"potential energy" system.
 USE_POTENTIAL_ENERGY = true
@@ -42,7 +44,10 @@ LOG_BOUNDARY_TRANSITIONS = true
 
 # What ratio of adjacent boundaries to (attempt) to transform for a candidate boundary upon propagation.
 # Note that the minimum "propagation count" is one, so the propagation ratio can never truly be zero.
-PROPAGATION_RATIO = 0.1
+PROPAGATION_RATIO = 0.2
 
 # Whether or not to generate analysis files for each output VTK. Contains volume for each grain as well as curvature/area of each boundary.
 GENERATE_ANALYSIS_FILES = true
+
+# Which location in z axis should the grain to start flip, should test half of the dimension
+Z_PROP_PLANE = 1024

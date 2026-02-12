@@ -25,6 +25,9 @@ struct config_t
 	bool log_transitions = true;
 	double propagation_ratio = 0;
 	bool generate_analysis_files = true;
+	// Z axis for the transition, by default it's 0
+	int z_propagation_plane = 0; 
+
 
 	void checkpoints_to_vector(std::vector<double> *checkpoint_vector)
 	{
@@ -132,6 +135,11 @@ struct config_t
 			else if (key == "GENERATE_ANALYSIS_FILES")
 			{
 				generate_analysis_files = value == "true";
+			}
+			// add config: z axis
+			else if (key == "Z_PROP_PLANE"){
+				z_propagation_plane = std::stoi(value);
+				std::cout << "[INFO] Z_PROP_PLANE: " << z_propagation_plane << std::endl;
 			}
 			else
 			{
