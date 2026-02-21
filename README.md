@@ -36,6 +36,23 @@ Z_PROP_PLANE = 1024
 ```
 Add this line to your configuration file to control propagation behavior.
 
+### Ramp-up nucleation rate (Discrete)
+The transition count increases by a fixed increment every TRANSITION_INTERVAL timesteps, capped at a maximum limit.
+
+```ini
+# Enable/disable ramp-up
+RAMP_UP_ENABLED = true
+
+# How often to transition boundaries (in timesteps / MCS)
+TRANSITION_INTERVAL = 200
+
+# How much to increase the transition count each interval
+TRANSITION_TIME_COUNT_INCREASE = 5
+
+# Maximum transition count per interval during ramp-up
+HIGH_NUCLEATION_RATE_LIMIT = 200
+```
+
 ## Example: SLURM Execution
 Example SLURM command with all overrides:
 ```bash
@@ -47,5 +64,15 @@ srun ./grainsim.out \
 
 ```
 ## Changelog
+### 2026-02-21
+### Added
+- Configurable discrete ramp-up nucleation rate.
+- New configuration parameters:
+  - RAMP_UP_ENABLED
+  - TRANSITION_INTERVAL
+  - TRANSITION_TIME_COUNT_INCREASE
+  - HIGH_NUCLEATION_RATE_LIMIT
+- Example SLURM array script for ramp-up testing.
+
 ### 2026-02-11
 - Added support for custom z-plane propagation via Z_PROP_PLANE in the configuration file.

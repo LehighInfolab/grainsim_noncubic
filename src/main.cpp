@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
 
 #include "vtk.h"
 #include "lattice.h"
@@ -62,6 +63,13 @@ int main(int argc, char *argv[])
 	config_t cfg;
 	cfg.load_config(config_path, init_override, out_override, transition_override);
 
+	std::cout << "ramp_up_enabled=" << cfg.ramp_up_enabled
+          << " transition_count=" << cfg.transition_count
+          << " transition_time_count_increase=" << cfg.transition_time_count_increase
+          << " high_nucleation_rate_limit=" << cfg.high_nucleation_rate_limit
+          << " transition_interval=" << cfg.transition_interval
+          << "\n";
+
 	// Create the lattice from file.
 	lattice_t *cube;
 
@@ -102,16 +110,42 @@ int main(int argc, char *argv[])
 
 	if (cfg.log_transitions) cube->begin_logging_transitions(cfg.output_folder);
 
+	// initialize transition_interval as the config file
+	double ramp_up_transition_count  = 0;
+	// for rampup updates
+	double next_transition_time = cfg.transition_interval;
+
 	// Main simulation loop.
 	while (true)
 	{
 		// Flip a voxel and store elapsed timesteps.
 		curr_step = cube->step();
 
+		static double last = -1.0;
+		if (ramp_up_transition_count != last) {
+			std::cout << "t=" << timestep << " ramp=" << ramp_up_transition_count << "\n";
+			last = ramp_up_transition_count;
+		}
 		// Update current timestep.
 		timestep += curr_step;
 		log_duration += curr_step;
 		transition_duration += curr_step;
+
+		// updates for ramp-up nucleaton rate
+		if (cfg.ramp_up_enabled) {
+			// NucleationRate(t) = Constant * MCS, capped at limit, is this discrete? 
+			if (timestep >= next_transition_time) {
+				ramp_up_transition_count = std::min(
+					cfg.high_nucleation_rate_limit, 
+					ramp_up_transition_count + cfg.transition_time_count_increase
+				);
+				std::cout << "Ramp up nucleation rate increased to: " << ramp_up_transition_count << std::endl;
+
+				next_transition_time += cfg.transition_interval;
+			}
+		}else {
+			ramp_up_transition_count = cfg.transition_count;
+		}
 
 		// Debug logging.
 		if (log_duration >= 20000)
@@ -121,13 +155,14 @@ int main(int argc, char *argv[])
 		}
 
 		// Transition some boundaries if applicable.
-		if (transition_duration >= cfg.transition_interval && cfg.transition_count > 0)
+		// if (transition_duration >= cfg.transition_interval && cfg.transition_count > 0)
+		if (transition_duration >= cfg.transition_interval && ramp_up_transition_count > 0)
 		{
 			std::cout << "Transition some boundaries if applicable." << std::endl;
 			if (cfg.log_transitions) cube->set_log_timestep(timestep);
 
-			cube->transition_boundaries(cfg.transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
-
+			//cube->transition_boundaries(cfg.transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
+			cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
 			transition_duration = 0;
 		}
 		//std::cout << "Current Timestep: " << timestep << std::endl;
@@ -177,6 +212,10 @@ int main(int argc, char *argv[])
 
 		// Break if the max timestep is reached.
 		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) break;
+
+		// break if there are 5 grains left
+		// count how many grains are rleft
+
 	}
 
 	if (cfg.log_transitions) cube->stop_logging_transitions();
