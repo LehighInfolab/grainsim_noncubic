@@ -28,6 +28,12 @@ struct config_t
 	// Z axis for the transition, by default it's 0
 	int z_propagation_plane = 0; 
 
+	// increase in transition time count in interval
+	size_t transition_time_count_increase = 0;
+	// switch to turn rampup on or off
+	bool ramp_up_enabled = false;
+	// high nucleation rate limit
+	double high_nucleation_rate_limit = 0;
 
 	void checkpoints_to_vector(std::vector<double> *checkpoint_vector)
 	{
@@ -140,6 +146,18 @@ struct config_t
 			else if (key == "Z_PROP_PLANE"){
 				z_propagation_plane = std::stoi(value);
 				std::cout << "[INFO] Z_PROP_PLANE: " << z_propagation_plane << std::endl;
+			}
+			else if (key == "TRANSITION_TIME_COUNT_INCREASE")
+			{
+				transition_time_count_increase = std::stoul(value);
+			}
+			else if (key == "RAMP_UP_ENABLED")
+			{
+				ramp_up_enabled = value == "true";
+			}
+			else if (key == "HIGH_NUCLEATION_RATE_LIMIT")
+			{
+				high_nucleation_rate_limit = std::stod(value);
 			}
 			else
 			{

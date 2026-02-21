@@ -5,7 +5,7 @@ INITIAL_STATE_FILE = out/0Seed_DiffusionCouple_T1_0000_0000000.ph
 OUTPUT_FOLDER = tests/
 
 # The prefix to use when creating VTK files.
-IDENTIFIER = z_test
+IDENTIFIER = ramp_up
 
 # How often to capture a VTK file (in timesteps).
 PERIODIC_CHECKPOINT_INTERVAL = 200
@@ -36,7 +36,7 @@ USE_POTENTIAL_ENERGY = true
 SCALE_MULTIPLIER = 1
 
 # Whether or not to write boundary transitions to a log file.
-LOG_BOUNDARY_TRANSITIONS = true
+LOG_BOUNDARY_TRANSITIONS = False
 
 # A constant number representing the number of possible spin values within the system. Primarily for comparison to the Fortran code.
 # Uncomment to use.
@@ -50,4 +50,13 @@ PROPAGATION_RATIO = 0.2
 GENERATE_ANALYSIS_FILES = true
 
 # Which location in z axis should the grain to start flip, should test half of the dimension
-Z_PROP_PLANE = 1024
+Z_PROP_PLANE = 128
+
+# increase in transtion time count in interval
+TRANSITION_TIME_COUNT_INCREASE = 5
+
+# switch to turn rampup on or off 
+RAMP_UP_ENABLED = true
+
+# high nucleation rate limit (max transitions per interval)
+HIGH_NUCLEATION_RATE_LIMIT = 200

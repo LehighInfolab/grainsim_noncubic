@@ -11,4 +11,4 @@
 *.txt
 
 # ignore shell script from sol 
-*.sh
+sol_grainsim.sh
