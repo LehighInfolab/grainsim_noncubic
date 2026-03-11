@@ -153,6 +153,33 @@ private:
 				}
 
 	}
+// calculate z-center
+	std::unordered_map<spin_t, double> compute_zcenters_voxel_index() const
+    {
+        std::unordered_map<spin_t, double> z_sum;
+        z_sum.reserve(vol_map.size());
+
+        for (coord_t z = 0; z < curr_cube->side_length_z; ++z)
+            for (coord_t y = 0; y < curr_cube->side_length_y; ++y)
+                for (coord_t x = 0; x < curr_cube->side_length_x; ++x)
+                {
+                    spin_t id = curr_cube->voxel_at(x, y, z)->spin;
+                    z_sum[id] += static_cast<double>(z);
+                }
+
+        std::unordered_map<spin_t, double> zcenter;
+        zcenter.reserve(vol_map.size());
+
+        for (const auto& [id, vol] : vol_map)
+        {
+            if (vol == 0) continue;
+            auto it = z_sum.find(id);
+            double sum = (it == z_sum.end()) ? 0.0 : it->second;
+            zcenter[id] = sum / static_cast<double>(vol);
+        }
+
+        return zcenter;
+    }
 
 public:
 
@@ -184,13 +211,24 @@ public:
 
 		std::cout << "Creating analysis file " << fname << std::endl;
 
+		// z center
+		const auto zcenter = compute_zcenters_voxel_index();
 		// Volumes
 		afile << "VOLUMES\n";
-		for (auto vol_iter = vol_map.begin(); vol_iter != vol_map.end(); ++vol_iter)
-		{
-			afile << vol_iter->first << ' ' << vol_iter->second << '\n';
-		}
+		// for (auto vol_iter = vol_map.begin(); vol_iter != vol_map.end(); ++vol_iter)
+		// {
+		// 	afile << vol_iter->first << ' ' << vol_iter->second << '\n';
+		// }
 
+		for (const auto& [id, vol] : vol_map)
+        {
+            double cz = 0.0;
+            auto it = zcenter.find(id);
+            if (it != zcenter.end()) cz = it->second;
+
+            afile << id << ' ' << vol << ' ' << cz << '\n';
+        }
+		
 		// Curvatures
 		afile << "CURVATURES\n";
 		for (auto sm_iter = sparse_info_matrix.begin(); sm_iter != sparse_info_matrix.end(); ++sm_iter)

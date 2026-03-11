@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 
 		static double last = -1.0;
 		if (ramp_up_transition_count != last) {
-			std::cout << "t=" << timestep << " ramp=" << ramp_up_transition_count << "\n";
+			//std::cout << "t=" << timestep << " ramp=" << ramp_up_transition_count << "\n";
 			last = ramp_up_transition_count;
 		}
 		// Update current timestep.

@@ -468,9 +468,9 @@ public:
 					{
 						if (x == 0 && y == 0 && z == 0) continue;
 						if (filtered_b.count(index_at(fx+x, fy+y, fz+z))){
-							std::cout << "[INFO] Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
-							std::cout << "[INFO] x, y, z voxel coordinates: " <<fx  <<", "  << fy<<", " << fz << std::endl; 
-							std::cout << "[INFO] Found: " << fx+x  <<", "<<  fy+y <<", " << fz+z << std::endl;
+							// std::cout << "[INFO] Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
+							// std::cout << "[INFO] x, y, z voxel coordinates: " <<fx  <<", "  << fy<<", " << fz << std::endl; 
+							// std::cout << "[INFO] Found: " << fx+x  <<", "<<  fy+y <<", " << fz+z << std::endl;
 							return true;
 						}
 					}

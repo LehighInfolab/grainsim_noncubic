@@ -12,3 +12,4 @@
 
 # ignore shell script from sol 
 sol_grainsim.sh
+*_config.txt
