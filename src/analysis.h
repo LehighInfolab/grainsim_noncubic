@@ -1,10 +1,15 @@
-
+//analysis.h
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
 
 #include "types.h"
 #include "lattice.h"
+
+
+#include "json.hpp"
+using json = nlohmann::json;
+
 
 class lattice_analyzer_t
 {
@@ -153,7 +158,44 @@ private:
 				}
 
 	}
-// calculate z-center
+	// calculate all centroid
+	struct centroid_t {
+		double x= 0, y=0, z=0;
+	};
+
+	// compute all centroids
+	std::unordered_map<spin_t, centroid_t> compute_centroids() const 
+	{
+		std::unordered_map<spin_t, centroid_t> sums;
+		sums.reserve(vol_map.size());
+
+		// sum each grain's information
+		for (coord_t z=0; z<curr_cube->side_length_z; ++z) {
+			for (coord_t y = 0; y < curr_cube->side_length_y; ++y) {
+				for (coord_t x = 0; x < curr_cube->side_length_x; ++x) {
+					spin_t id = curr_cube->voxel_at(x, y, z)->spin;
+					sums[id].x += static_cast<double>(x);
+					sums[id].y += static_cast<double>(y);
+					sums[id].z += static_cast<double>(z);
+				}
+			}
+		}
+
+		std::unordered_map<spin_t, centroid_t> centroids;
+		centroids.reserve(vol_map.size());
+
+		for (const auto& [id, vol] : vol_map) 
+		{
+			if (vol==0) continue;
+			double v = static_cast<double>(vol);
+			auto it = sums.find(id);
+			if (it != sums.end()) {
+				centroids[id] = {it->second.x / v, it->second.y / v, it->second.z / v};
+			}
+		}
+		return centroids;
+	}
+
 	std::unordered_map<spin_t, double> compute_zcenters_voxel_index() const
     {
         std::unordered_map<spin_t, double> z_sum;
@@ -182,6 +224,9 @@ private:
     }
 
 public:
+	size_t get_grain_count() const {
+		return vol_map.size();
+	}
 
 	void load_lattice(lattice_t *cube)
 	{
@@ -291,4 +336,103 @@ public:
 
 		afile.close();
 	}
+
+	void save_analysis_to_json(const char *fname, double timestep) {
+		std::cout << "Creating Json analysis file " << fname << std::endl;
+
+		const auto centroids = compute_centroids();
+
+		struct boundary_data_t {
+			spin_t neighbor;
+			double curvature;
+			int surface_area;
+			int velocity;
+			double mobility;
+			bool transformed;
+		};
+		std::unordered_map<spin_t, std::vector<boundary_data_t>> grain_boundaries;
+
+		for (const auto& [a, inner] : sparse_info_matrix) {
+			for (const auto& [b, info] : inner) {
+				if (info.surface_area == 0) continue;
+
+				double curv_a = get_curvature(a, b);
+				double curv_b = get_curvature(b, a);
+
+				// get Mobility and transformed info 
+				bool trans = curr_cube->boundary_tracker.is_transformed(a, b);
+				double mobility = trans ? curr_cube->transitioned_mobility : curr_cube->default_mobility;
+
+				// Velocity
+				int vel_ab = 0, vel_ba = 0;
+				auto v_it = curr_cube->boundary_tracker.velocity_tracker.find(a);
+				if (v_it != curr_cube->boundary_tracker.velocity_tracker.end()) {
+					auto v_it2 = v_it->second.find(b);
+					if (v_it2 != v_it->second.end()) {
+						vel_ab = v_it2->second.first - v_it2->second.second;
+						vel_ba = v_it2->second.second - v_it2->second.first;
+					}
+				}
+
+				grain_boundaries[a].push_back({b, curv_a, info.surface_area, vel_ab, mobility, trans});
+				grain_boundaries[b].push_back({a, curv_b, info.surface_area, vel_ba, mobility, trans});
+			}
+		}
+
+
+		// construct json output
+		json output;
+		output["metadata"] = {
+			{"timestamp_mcs", timestep},
+			{"total_grains", vol_map.size()},
+			{"lattice_dimensions", {curr_cube->side_length_x, curr_cube->side_length_y, curr_cube->side_length_z}}
+		};
+
+		json grains = json::array();
+
+		for (const auto& [id, vol] : vol_map) {
+			centroid_t c = {0, 0, 0};
+			auto c_it = centroids.find(id);
+			if (c_it != centroids.end()) c = c_it->second;
+
+			json boundaries = json::array();
+			json neighbors = json::array();
+
+			auto b_it = grain_boundaries.find(id);
+			if (b_it != grain_boundaries.end()) {
+				for (const auto& bd : b_it->second) {
+					neighbors.push_back(bd.neighbor);
+					boundaries.push_back({
+						{"neighbor_id",   bd.neighbor},
+						{"curvature",     bd.curvature},
+						{"surface_area",  bd.surface_area},
+						{"velocity",      bd.velocity},
+						{"mobility",      bd.mobility},
+						{"transformed",   bd.transformed}
+					});
+				}
+			}
+
+			// v = (4 * pi r^3 )/3
+			double eq_radius = std::cbrt((3.0 * vol) / (4.0 * 3.14));
+
+			grains.push_back({
+				{"id",                (int)id},
+				{"volume",            (int)vol},
+				{"equivalent_radius", eq_radius},
+				{"centroid",          {{"x", c.x}, {"y", c.y}, {"z", c.z}}},
+				{"neighbors",         neighbors},
+				{"boundaries",        boundaries}
+			});
+		}
+
+		output["grains"] = grains;
+
+		std::ofstream afile(fname);
+		afile << output.dump(2);
+		afile.close();
+
+		curr_cube->boundary_tracker.reset_flip_tracker();
+	}
+
 };
