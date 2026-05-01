@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <zip.h>
 
 #include "vtk.h"
 #include "lattice.h"
@@ -14,6 +15,8 @@
 #include "debug_timer.h"
 #include "config.h"
 #include "analysis.h"
+#include "zip_utils.h"
+
 
 // cd C:\Stuff\School\summer 2023\grainsim
 // g++ -O3 CPPGrainSim/main.cpp -o grainsim.out -static
@@ -61,6 +64,7 @@ int main(int argc, char *argv[])
 	}
 	// Load the config file.
 	config_t cfg;
+	std::cout << "Loading: " << cfg.initial_state_path << std::endl;
 	cfg.load_config(config_path, init_override, out_override, transition_override);
 
 	std::cout << "ramp_up_enabled=" << cfg.ramp_up_enabled
@@ -115,6 +119,9 @@ int main(int argc, char *argv[])
 	// for rampup updates
 	double next_transition_time = cfg.transition_interval;
 
+	// create small zips for every batch size
+	std::vector<std::string> small_zips;
+
 	// Main simulation loop.
 	while (true)
 	{
@@ -126,6 +133,7 @@ int main(int argc, char *argv[])
 			//std::cout << "t=" << timestep << " ramp=" << ramp_up_transition_count << "\n";
 			last = ramp_up_transition_count;
 		}
+
 		// Update current timestep.
 		timestep += curr_step;
 		log_duration += curr_step;
@@ -133,7 +141,7 @@ int main(int argc, char *argv[])
 
 		// updates for ramp-up nucleaton rate
 		if (cfg.ramp_up_enabled) {
-			// NucleationRate(t) = Constant * MCS, capped at limit, is this discrete? 
+			// NucleationRate(t) = Constant * MCS, capped at limit, discrete
 			if (timestep >= next_transition_time) {
 				ramp_up_transition_count = std::min(
 					cfg.high_nucleation_rate_limit, 
@@ -143,7 +151,7 @@ int main(int argc, char *argv[])
 
 				next_transition_time += cfg.transition_interval;
 			}
-		}else {
+		} else {
 			ramp_up_transition_count = cfg.transition_count;
 		}
 
@@ -165,54 +173,95 @@ int main(int argc, char *argv[])
 			cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
 			transition_duration = 0;
 		}
+
 		//std::cout << "Current Timestep: " << timestep << std::endl;
 		// Check if VTK should be generated.
 		if (checkpoints.size() > 0 && curr_checkpoint < checkpoints.size() && timestep >= checkpoints[curr_checkpoint]) // The current timestep is an explicit checkpoint.
 		{
+			// WRITE TO VTK 
 			std::cout << "Check if VTK should be generated." << std::endl;
 			std::stringstream ss;
 			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
+			std::string vtk_path = ss.str();
 			vtk::to_vtk(ss.str().c_str(), cube);
+			std::string json_path; // json path
+
 			if (cfg.log_transitions) cube->flush_log_file();
 
+			// write to analysis file
 			if (cfg.generate_analysis_files)
 			{
 				std::cout << "Beginning analysis..." << std::endl;
 				analyze.load_lattice(cube);
 				ss.str(std::string());
-				ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << "_analysis.txt";
-				analyze.save_analysis_to_file(ss.str().c_str());
+				//ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << "_analysis.txt";
+				ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << "_analysis.json";
+				
+				// josn file
+				json_path = ss.str();
+				analyze.save_analysis_to_json(ss.str().c_str(), timestep);
 			}
+			bundle_and_cleanup(vtk_path, json_path);
+			small_zips.push_back(vtk_path.substr(0, vtk_path.size() - 4) + ".zip");
 
 			++vtkcount;
 			++curr_checkpoint;
 
 			if (cfg.max_timestep <= 0 && curr_checkpoint >= checkpoints.size()) break;
 		}
-		else if (cfg.checkpoint_interval > 0 && timestep >= next_checkpoint) // The current timestep surpasses the interval threshold.
+		else if (cfg.checkpoint_interval > 0 && timestep >= next_checkpoint)
 		{
 			std::stringstream ss;
 			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
-			vtk::to_vtk(ss.str().c_str(), cube);
+			std::string vtk_path = ss.str();
+			vtk::to_vtk(vtk_path.c_str(), cube);
+
+			std::string json_path;
+			// // Add VTK to zip
+			// zip_source_t* src = zip_source_file(archive, vtk_path.c_str(), 0, -1);
+			// if (src) {
+			// 	auto idx = zip_file_add(archive, std::filesystem::path(vtk_path).filename().c_str(), src, ZIP_FL_OVERWRITE);
+			// 	zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
+			// }
+
 			if (cfg.log_transitions) cube->flush_log_file();
 
 			if (cfg.generate_analysis_files)
 			{
+				std::cout << "Grain count: " << analyze.get_grain_count() << std::endl;
 				std::cout << "Beginning analysis..." << std::endl;
 				analyze.load_lattice(cube);
+
 				ss.str(std::string());
-				ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << "_analysis.txt";
-				analyze.save_analysis_to_file(ss.str().c_str());
+				ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << "_analysis.json";
+				
+				json_path = ss.str();
+				analyze.save_analysis_to_json(json_path.c_str(), timestep);
+
+				// // Add JSON to zip
+				// zip_source_t* jsrc = zip_source_file(archive, json_path.c_str(), 0, -1);
+				// if (jsrc) {
+				// 	auto idx = zip_file_add(archive, std::filesystem::path(json_path).filename().c_str(), jsrc, ZIP_FL_OVERWRITE);
+				// 	zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
+				// }
 			}
+			bundle_and_cleanup(vtk_path, json_path);
+			small_zips.push_back(vtk_path.substr(0, vtk_path.size() - 4) + ".zip");
 
 			++vtkcount;
-
 			next_checkpoint += cfg.checkpoint_interval;
 		}
 
 		// Break if the max timestep is reached.
 		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) break;
 
+		// break if grain size is less than 5
+		if (cfg.generate_analysis_files && analyze.get_grain_count() > 0 && analyze.get_grain_count() <= 3905) {
+			std::cout << "Grain count reached " << analyze.get_grain_count() << ", stopping." << std::endl;
+			break;
+		}
+
+		//break; // testing 
 		// break if there are 5 grains left
 		// count how many grains are rleft
 
@@ -220,12 +269,18 @@ int main(int argc, char *argv[])
 
 	if (cfg.log_transitions) cube->stop_logging_transitions();
 
+	// Close zip after the loop — this is when everything gets written
+	// if (zip_close(archive) < 0){
+	// 	std::cerr << "zip_close failed: " << zip_strerror(archive) << std::endl;
+	// }
+	// merge into large zip
 
-
-
-
-
-
+	std::cout << "Small zips to merge: " << small_zips.size() << std::endl;
+	for (const auto& z : small_zips){
+		std::cout << "  " << z << " exists=" << std::filesystem::exists(z) << std::endl;
+	}
+	std::string final_zip = cfg.output_folder + cfg.identifier + "_all.zip";
+	merge_zips(small_zips, final_zip);
 
 
 
