@@ -2,6 +2,22 @@
 Monte Carlo grain coarsening simulation with support for transformed grain boundaries.
 
 ## Build
+### libzip
+
+To add the [libzip](https://libzip.org/documentation/libzip/) dependency, make sure `cmake` is loaded. On an HPC cluster, you may need to load it as a module first:
+
+```bash
+module load cmake
+```
+
+Then run:
+
+```bash
+./install_libzip.sh
+```
+
+This builds libzip from source and installs it to `$HOME/local` (headers in `include/`, shared library in `lib64/`). The Makefile links against it via `-I$HOME/local/include -L$HOME/local/lib64 -lzip`.
+
 ### Linux
 Compile using the provided Makefile:
 ```bash

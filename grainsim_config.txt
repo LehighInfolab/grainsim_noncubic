@@ -8,7 +8,7 @@ OUTPUT_FOLDER = tests/
 IDENTIFIER = ramp_up
 
 # How often to capture a VTK file (in timesteps).
-PERIODIC_CHECKPOINT_INTERVAL = 200
+PERIODIC_CHECKPOINT_INTERVAL = 20
 
 # The timestep at which to end the simulation.
 MAX_TIMESTEP = 60000
@@ -53,10 +53,10 @@ GENERATE_ANALYSIS_FILES = true
 Z_PROP_PLANE = 128
 
 # increase in transtion time count in interval
-TRANSITION_TIME_COUNT_INCREASE = 5
+TRANSITION_TIME_COUNT_INCREASE = 20
 
 # switch to turn rampup on or off 
 RAMP_UP_ENABLED = true
 
 # high nucleation rate limit (max transitions per interval)
-HIGH_NUCLEATION_RATE_LIMIT = 200
+HIGH_NUCLEATION_RATE_LIMIT = 500

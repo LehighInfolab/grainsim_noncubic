@@ -7,7 +7,7 @@
 #SBATCH --job-name=grainsim_array
 #SBATCH --time=15:00:00
 #SBATCH --cpus-per-task=4
-#SBATCH --array=0-1                # 1 seed: 0-0, 2 seeds → 0-1, 3 seeds -> 0-2...
+#SBATCH --array=0-0                # 1 seed: 0-0, 2 seeds → 0-1, 3 seeds -> 0-2...
 #SBATCH --output=/share/ceph/hawk/nhi_122121/suh222/logs/rampup/grainsim_%A_%a.out
 #SBATCH --error=/share/ceph/hawk/nhi_122121/suh222/logs/rampup/grainsim_%A_%a.err
 #SBATCH -p hawkcpu
