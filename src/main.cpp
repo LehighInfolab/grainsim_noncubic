@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 
 			if (cfg.generate_analysis_files)
 			{
-				std::cout << "Grain count: " << analyze.get_grain_count() << std::endl;
+				//std::cout << "Grain count: " << analyze.get_grain_count() << std::endl;
 				std::cout << "Beginning analysis..." << std::endl;
 				analyze.load_lattice(cube);
 
@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
 		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) break;
 
 		// break if grain size is less than 5
-		if (cfg.generate_analysis_files && analyze.get_grain_count() > 0 && analyze.get_grain_count() <= 3905) {
+		if (cfg.generate_analysis_files && analyze.get_grain_count() > 0 && analyze.get_grain_count() <= 5) {
 			std::cout << "Grain count reached " << analyze.get_grain_count() << ", stopping." << std::endl;
 			break;
 		}
