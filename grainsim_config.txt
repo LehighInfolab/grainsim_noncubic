@@ -5,10 +5,10 @@ INITIAL_STATE_FILE = out/0Seed_DiffusionCouple_T1_0000_0000000.ph
 OUTPUT_FOLDER = tests/
 
 # The prefix to use when creating VTK files.
-IDENTIFIER = ramp_up
+IDENTIFIER = 151_test
 
 # How often to capture a VTK file (in timesteps).
-PERIODIC_CHECKPOINT_INTERVAL = 20
+PERIODIC_CHECKPOINT_INTERVAL = 200
 
 # The timestep at which to end the simulation.
 MAX_TIMESTEP = 60000
@@ -49,14 +49,20 @@ PROPAGATION_RATIO = 0.2
 # Whether or not to generate analysis files for each output VTK. Contains volume for each grain as well as curvature/area of each boundary.
 GENERATE_ANALYSIS_FILES = true
 
-# Which location in z axis should the grain to start flip, should test half of the dimension
-Z_PROP_PLANE = 128
-
 # increase in transtion time count in interval
 TRANSITION_TIME_COUNT_INCREASE = 20
 
 # switch to turn rampup on or off 
-RAMP_UP_ENABLED = true
+RAMP_UP_ENABLED = false
 
 # high nucleation rate limit (max transitions per interval)
 HIGH_NUCLEATION_RATE_LIMIT = 500
+
+# Which location in z axis should the grain to start flip, should test half of the dimension
+Z_PROP_PLANE = 256
+
+# Half-width of z-range around Z_PROP_PLANE for boundary transitions.
+# Boundaries are eligible only if they cross z in [Z_PROP_PLANE - N, Z_PROP_PLANE + N].
+# Example: for a z=512 lattice with Z_PROP_PLANE = 256 and N = 64,
+# the active range is z = 192 to 320
+Z_PROP_TOLERANCE = 64

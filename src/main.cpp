@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
 	cube->transitioned_mobility = cfg.transitioned_mobility;
 	cube->grain_count = cfg.const_grain_count;
 	cube->z_propagation_plane = cfg.z_propagation_plane;
+	cube->z_tolerance = cfg.z_prop_tolerance;	// for boundary range
 	cube->init();
 
 	// Generate the checkpoint list.

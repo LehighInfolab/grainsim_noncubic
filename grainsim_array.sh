@@ -8,15 +8,16 @@
 #SBATCH --time=15:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --array=0-0                # 1 seed: 0-0, 2 seeds → 0-1, 3 seeds -> 0-2...
-#SBATCH --output=/share/ceph/hawk/nhi_122121/suh222/logs/rampup/grainsim_%A_%a.out
-#SBATCH --error=/share/ceph/hawk/nhi_122121/suh222/logs/rampup/grainsim_%A_%a.err
+#SBATCH --output=/share/ceph/hawk/nhi_122121/suh222/logs/range/grainsim_%A_%a.out
+#SBATCH --error=/share/ceph/hawk/nhi_122121/suh222/logs/range/grainsim_%A_%a.err
 #SBATCH -p hawkcpu
 
 # --- list of seed filenames ---
 # use # to comment out seeds
 SEEDS=(
-  "0Seed256-256-256_T1_0000_0000000.ph"
-  #"0Seed256-256-512_T1_0000_0000000.ph"
+  #"Seed_0000_0000000.ph"
+  #"0Seed256-256-256_T1_0000_0000000.ph"
+  "0Seed256-256-512_T1_0000_0000000.ph"
   #"0Seed256-256-1024_T1_0000_0000000.ph"
   #"0Seed256-256-2048_T1_0000_0000000.ph"
   # "0Seed256-256-4096_T1_0000_0000000.ph"

@@ -209,6 +209,7 @@ public:
 	coord_t side_length_z;
 	//coord_t side_length;
 	int z_propagation_plane;
+	int z_tolerance;
 
 	// An array of all voxels within the lattice.
 	voxel_t *voxels;
@@ -248,6 +249,7 @@ public:
 
 		// the z_plane that should be set for propagation
 		z_propagation_plane = 0;
+		z_tolerance = 1;
 
 		// Make the area managed by the octree have a side length equal to the next power of two after the real side length.
 		// The purpose is to prevent unexpected behavior from integer division (which I spent hours trying to debug...).
@@ -657,7 +659,7 @@ public:
 				else if (!boundary->transformed && flip_iter != flip_indices.end())
 				{
 					// REVISION 1/28, test for different planes
-					if (!cross_zplane(boundary)) {
+					if (!cross_zplane(boundary, z_tolerance)) {
 						continue;
 					}
 					if (*flip_iter == untrans_count)
