@@ -35,6 +35,9 @@ struct config_t
 	// high nucleation rate limit
 	double high_nucleation_rate_limit = 0;
 
+	// Half-width of the z-range for transitions
+	int z_prop_tolerance = 1;
+
 	void checkpoints_to_vector(std::vector<double> *checkpoint_vector)
 	{
 		std::istringstream ss(checkpoints);
@@ -158,6 +161,11 @@ struct config_t
 			else if (key == "HIGH_NUCLEATION_RATE_LIMIT")
 			{
 				high_nucleation_rate_limit = std::stod(value);
+			}
+			else if (key == "Z_PROP_TOLERANCE")
+			{
+				z_prop_tolerance = std::stod(value);
+				std::cout << "[INFO] Z_PROP_TOLERANCE: " << z_prop_tolerance << std::endl;
 			}
 			else
 			{
