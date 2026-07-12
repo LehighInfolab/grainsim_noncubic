@@ -38,7 +38,7 @@ By default, the simulation reads parameters from a configuration file.
 
 Basic usage with optional parameters:
 ```bash
-./grainsim.out [--config <file>] [--initial <seed.ph>] [--output <folder>] [--transition-count <int>]
+./grainsim.out [--config <file>] [--initial <seed.ph>] [--output <folder>] [--transition-count <int>] [--format <vtk(default)|mat>]
 ```
 If ```--config ``` is not provided, the program uses the default configuration file (if defined in the source).
 
@@ -76,7 +76,8 @@ srun ./grainsim.out \
     --config grainsim_config.txt \
     --initial "${INITIAL_STATE_FILE}" \
     --output "${OUTPUT_FOLDER}" \
-    --transition-count "$TRANSITION_COUNT"
+    --transition-count "$TRANSITION_COUNT"\
+    --format "mat"
 
 ```
 ## Changelog
@@ -91,3 +92,5 @@ srun ./grainsim.out \
 
 ### 2026-02-11
 - Added support for custom z-plane propagation via Z_PROP_PLANE in the configuration file.
+
+./grainsim.out --config grainsim_config.txt --initial /share/ceph/hawk/nhi_122121/suh222/data/mc_seeds/Seed_0000_0000000.ph --output /share/ceph/hawk/nhi_122121/suh222/results/test/ --transition-count 200 --format mat

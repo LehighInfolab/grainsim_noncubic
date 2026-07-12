@@ -15,9 +15,9 @@
 # --- list of seed filenames ---
 # use # to comment out seeds
 SEEDS=(
-  #"Seed_0000_0000000.ph"
+  "Seed_0000_0000000.ph"
   #"0Seed256-256-256_T1_0000_0000000.ph"
-  "0Seed256-256-512_T1_0000_0000000.ph"
+  #"0Seed256-256-512_T1_0000_0000000.ph"
   #"0Seed256-256-1024_T1_0000_0000000.ph"
   #"0Seed256-256-2048_T1_0000_0000000.ph"
   # "0Seed256-256-4096_T1_0000_0000000.ph"
@@ -72,6 +72,7 @@ srun grainsim.out \
     --config grainsim_config.txt \
     --initial "${INITIAL_STATE_FILE}" \
     --output "${OUTPUT_FOLDER}" \
-    --transition-count "$TRANSITION_COUNT"
+    --transition-count "$TRANSITION_COUNT"\
+    --format "mat"
 
 echo "End time:           $(date)"

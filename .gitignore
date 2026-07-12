@@ -10,8 +10,14 @@
 *.out
 *.txt
 
+# ignore testing 
+/test
+
 # ignore shell script from sol 
 sol_grainsim.sh
 *_config.txt
 
 /libzip-1.10.1
+/matio-*
+
+*.tar.gz

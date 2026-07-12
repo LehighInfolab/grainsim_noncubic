@@ -59,10 +59,10 @@ RAMP_UP_ENABLED = false
 HIGH_NUCLEATION_RATE_LIMIT = 500
 
 # Which location in z axis should the grain to start flip, should test half of the dimension
-Z_PROP_PLANE = 256
+Z_PROP_PLANE = 75
 
 # Half-width of z-range around Z_PROP_PLANE for boundary transitions.
 # Boundaries are eligible only if they cross z in [Z_PROP_PLANE - N, Z_PROP_PLANE + N].
 # Example: for a z=512 lattice with Z_PROP_PLANE = 256 and N = 64,
 # the active range is z = 192 to 320
-Z_PROP_TOLERANCE = 64
+Z_PROP_TOLERANCE = 1
