@@ -16,6 +16,7 @@
 #include "config.h"
 #include "analysis.h"
 #include "zip_utils.h"
+#include "array3d.h"
 
 
 // cd C:\Stuff\School\summer 2023\grainsim
@@ -28,6 +29,7 @@ void print_usage()
 			<< "  --config <file>    Path to config file (default: grainsim_config.txt)\n"
 			<< "  --initial <path>   Override INITIAL_STATE_FILE from config\n"
 			<< "  --output <path>    Override OUTPUT_FOLDER from config\n"
+			<< "  --format <fmt>   vtk (default) | mat | npy\n"
 			<< std::endl;
 }
 
@@ -38,6 +40,8 @@ int main(int argc, char *argv[])
 	std::string config_path = "grainsim_config.txt";
 	std::string init_override;
 	std::string out_override;
+	std::string output_format = "vtk";
+
 	int transition_override = -1;   // -1 = don't override
 
 	for(int i = 1; i < argc; ++i) {
@@ -56,6 +60,8 @@ int main(int argc, char *argv[])
 		else if (arg == "--transition-count" && i+1 < argc) {
 			transition_override = std::atoi(argv[++i]);
 		}
+		// override for mat format
+		else if (arg == "--format" && i+1 < argc) { output_format = argv[++i]; }
 		else {
 			std::cerr << "Unknown or incomplete argument: " << arg << "\n\n";
 			print_usage();
@@ -179,12 +185,30 @@ int main(int argc, char *argv[])
 		// Check if VTK should be generated.
 		if (checkpoints.size() > 0 && curr_checkpoint < checkpoints.size() && timestep >= checkpoints[curr_checkpoint]) // The current timestep is an explicit checkpoint.
 		{
-			// WRITE TO VTK 
-			std::cout << "Check if VTK should be generated." << std::endl;
+
 			std::stringstream ss;
-			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
-			std::string vtk_path = ss.str();
-			vtk::to_vtk(ss.str().c_str(), cube);
+			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep);
+			std::string base = ss.str();
+			std::string out_path; 
+
+			if (output_format == "vtk")
+			// WRITE TO VTK 
+			{			
+				std::cout << "Check if VTK should be generated." << std::endl;
+				//std::stringstream ss;
+				//ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
+				//std::string vtk_path = ss.str();
+				out_path = base + ".vtk";
+				vtk::to_vtk(ss.str().c_str(), cube);
+			}
+			else{
+				// WRITE TO MAT
+				array3d::cube3d_t vol = array3d::to_cube(cube);
+				out_path = base + "." + output_format;
+				array3d::to_mat(out_path.c_str(), vol);
+			}
+
+			// Log files 
 			std::string json_path; // json path
 
 			if (cfg.log_transitions) cube->flush_log_file();
@@ -202,8 +226,8 @@ int main(int argc, char *argv[])
 				json_path = ss.str();
 				analyze.save_analysis_to_json(ss.str().c_str(), timestep);
 			}
-			bundle_and_cleanup(vtk_path, json_path);
-			small_zips.push_back(vtk_path.substr(0, vtk_path.size() - 4) + ".zip");
+			bundle_and_cleanup(out_path, json_path);
+			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");
 
 			++vtkcount;
 			++curr_checkpoint;
@@ -212,19 +236,34 @@ int main(int argc, char *argv[])
 		}
 		else if (cfg.checkpoint_interval > 0 && timestep >= next_checkpoint)
 		{
+			// std::stringstream ss;
+			// ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
+			// std::string vtk_path = ss.str();
+			// vtk::to_vtk(vtk_path.c_str(), cube);
+
 			std::stringstream ss;
-			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
-			std::string vtk_path = ss.str();
-			vtk::to_vtk(vtk_path.c_str(), cube);
+			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep);
+			std::string base = ss.str();
+			std::string out_path; 
+
+			if (output_format == "vtk")
+			// WRITE TO VTK 
+			{			
+				std::cout << "Check if VTK should be generated." << std::endl;
+				//std::stringstream ss;
+				//ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
+				//std::string vtk_path = ss.str();
+				out_path = base + ".vtk";
+				vtk::to_vtk(ss.str().c_str(), cube);
+			}
+			else{
+				// WRITE TO MAT
+				array3d::cube3d_t vol = array3d::to_cube(cube);
+				out_path = base + "." + output_format;
+				array3d::to_mat(out_path.c_str(), vol);
+			}
 
 			std::string json_path;
-			// // Add VTK to zip
-			// zip_source_t* src = zip_source_file(archive, vtk_path.c_str(), 0, -1);
-			// if (src) {
-			// 	auto idx = zip_file_add(archive, std::filesystem::path(vtk_path).filename().c_str(), src, ZIP_FL_OVERWRITE);
-			// 	zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
-			// }
-
 			if (cfg.log_transitions) cube->flush_log_file();
 
 			if (cfg.generate_analysis_files)
@@ -246,8 +285,8 @@ int main(int argc, char *argv[])
 				// 	zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
 				// }
 			}
-			bundle_and_cleanup(vtk_path, json_path);
-			small_zips.push_back(vtk_path.substr(0, vtk_path.size() - 4) + ".zip");
+			bundle_and_cleanup(out_path, json_path);
+			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");
 
 			++vtkcount;
 			next_checkpoint += cfg.checkpoint_interval;
