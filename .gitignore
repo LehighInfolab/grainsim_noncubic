@@ -19,5 +19,5 @@ sol_grainsim.sh
 
 /libzip-1.10.1
 /matio-*
-
+/hdf5-*
 *.tar.gz
