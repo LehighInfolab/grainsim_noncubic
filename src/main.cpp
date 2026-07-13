@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
 				//ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
 				//std::string vtk_path = ss.str();
 				out_path = base + ".vtk";
-				vtk::to_vtk(ss.str().c_str(), cube);
+				vtk::to_vtk(out_path.c_str(), cube);
 			}
 			else{
 				// WRITE TO MAT
@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
 				//ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep) << ".vtk";
 				//std::string vtk_path = ss.str();
 				out_path = base + ".vtk";
-				vtk::to_vtk(ss.str().c_str(), cube);
+				vtk::to_vtk(out_path.c_str(), cube);
 			}
 			else{
 				// WRITE TO MAT
