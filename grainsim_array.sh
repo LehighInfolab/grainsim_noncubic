@@ -73,6 +73,6 @@ srun grainsim.out \
     --initial "${INITIAL_STATE_FILE}" \
     --output "${OUTPUT_FOLDER}" \
     --transition-count "$TRANSITION_COUNT"\
-    --format "mat"
+    --format mat
 
 echo "End time:           $(date)"
