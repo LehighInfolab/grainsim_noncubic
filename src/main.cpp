@@ -190,6 +190,7 @@ int main(int argc, char *argv[])
 			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep);
 			std::string base = ss.str();
 			std::string out_path; 
+			std::string cls_path;
 
 			if (output_format == "vtk")
 			// WRITE TO VTK 
@@ -203,9 +204,15 @@ int main(int argc, char *argv[])
 			}
 			else{
 				// WRITE TO MAT
-				array3d::cube3d_t vol = array3d::to_cube(cube);
+				// array3d::cube3d_t vol = array3d::to_cube(cube);
+				auto vol = array3d::to_cube(cube);
 				out_path = base + "." + output_format;
 				array3d::to_mat(out_path.c_str(), vol);
+
+				// mobility
+				auto cls = array3d::to_cube_mobility(cube);
+				cls_path = base + "_class." + output_format;
+				array3d::to_mat(cls_path.c_str(), cls, "mobility");
 			}
 
 			// Log files 
@@ -226,7 +233,7 @@ int main(int argc, char *argv[])
 				json_path = ss.str();
 				analyze.save_analysis_to_json(ss.str().c_str(), timestep);
 			}
-			bundle_and_cleanup(out_path, json_path);
+			bundle_and_cleanup(out_path, json_path, cls_path);
 			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");
 
 			++vtkcount;
@@ -245,6 +252,7 @@ int main(int argc, char *argv[])
 			ss << cfg.output_folder << cfg.identifier << "_" << std::setw(4) << std::setfill('0') << std::to_string(vtkcount + 1) << '_' << std::to_string((size_t)timestep);
 			std::string base = ss.str();
 			std::string out_path; 
+			std::string cls_path;
 
 			if (output_format == "vtk")
 			// WRITE TO VTK 
@@ -258,9 +266,17 @@ int main(int argc, char *argv[])
 			}
 			else{
 				// WRITE TO MAT
-				array3d::cube3d_t vol = array3d::to_cube(cube);
+				// array3d::cube3d_t vol = array3d::to_cube(cube);
+				// out_path = base + "." + output_format;
+				// array3d::to_mat(out_path.c_str(), vol);
+				auto vol = array3d::to_cube(cube);
 				out_path = base + "." + output_format;
 				array3d::to_mat(out_path.c_str(), vol);
+
+				// mobility
+				auto cls = array3d::to_cube_mobility(cube);
+				cls_path = base + "_class." + output_format;
+				array3d::to_mat(cls_path.c_str(), cls, "mobility");
 			}
 
 			std::string json_path;
@@ -285,7 +301,7 @@ int main(int argc, char *argv[])
 				// 	zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
 				// }
 			}
-			bundle_and_cleanup(out_path, json_path);
+			bundle_and_cleanup(out_path, json_path, cls_path);
 			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");
 
 			++vtkcount;
