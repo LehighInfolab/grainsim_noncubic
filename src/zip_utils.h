@@ -11,8 +11,14 @@
 // Bundle a VTK file and an optional JSON file into a single zip archive,
 // then delete the originals. The zip file name is derived from the VTK path
 // by replacing .vtk with .zip.
-inline void bundle_and_cleanup(const std::string& vtk_path, const std::string& json_path) {
-    std::string zip_path = vtk_path.substr(0, vtk_path.size() - 4) + ".zip";
+inline void bundle_and_cleanup(const std::string& out_path,
+                               const std::string& json_path,
+                               const std::string& extra_path = "")
+{
+    // replace extension properly instead of assuming it is 4 chars long
+    std::string zip_path =
+        std::filesystem::path(out_path).replace_extension(".zip").string();
+
     int zerr = 0;
     zip_t* archive = zip_open(zip_path.c_str(), ZIP_CREATE | ZIP_TRUNCATE, &zerr);
     if (!archive) {
@@ -20,31 +26,75 @@ inline void bundle_and_cleanup(const std::string& vtk_path, const std::string& j
         return;
     }
 
-    // Add VTK file with max compression
-    zip_source_t* src = zip_source_file(archive, vtk_path.c_str(), 0, -1);
-    if (src) {
-        auto idx = zip_file_add(archive, std::filesystem::path(vtk_path).filename().c_str(), src, ZIP_FL_OVERWRITE);
-        zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
-    }
-
-    // Add JSON file if provided
-    if (!json_path.empty()) {
-        zip_source_t* jsrc = zip_source_file(archive, json_path.c_str(), 0, -1);
-        if (jsrc) {
-            auto idx = zip_file_add(archive, std::filesystem::path(json_path).filename().c_str(), jsrc, ZIP_FL_OVERWRITE);
-            zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
+    auto add_file = [&](const std::string& p) -> bool {
+        if (p.empty()) return true;   // absent optional file is not an error
+        zip_source_t* src = zip_source_file(archive, p.c_str(), 0, -1);
+        if (!src) {
+            std::cerr << "zip_source_file failed for " << p << ": "
+                      << zip_strerror(archive) << std::endl;
+            return false;
         }
-    }
+        zip_int64_t idx = zip_file_add(
+            archive, std::filesystem::path(p).filename().string().c_str(),
+            src, ZIP_FL_OVERWRITE);
+        if (idx < 0) {
+            std::cerr << "zip_file_add failed for " << p << ": "
+                      << zip_strerror(archive) << std::endl;
+            zip_source_free(src);   // only on add failure; on success the archive owns it
+            return false;
+        }
+        zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
+        return true;
+    };
 
-    // zip_close is where the actual compression and writing happens.
-    // Only delete originals if the zip was written successfully.
-    if (zip_close(archive) == 0) {
-        std::filesystem::remove(vtk_path);
-        if (!json_path.empty()) std::filesystem::remove(json_path);
+    bool all_added = add_file(out_path) && add_file(json_path) && add_file(extra_path);
+
+    if (all_added && zip_close(archive) == 0) {
+        std::filesystem::remove(out_path);
+        if (!json_path.empty())  std::filesystem::remove(json_path);
+        if (!extra_path.empty()) std::filesystem::remove(extra_path);
     } else {
-        std::cerr << "zip_close failed for: " << zip_path << std::endl;
+        std::cerr << "zip_close failed for " << zip_path << ": "
+                  << (all_added ? zip_strerror(archive) : "some files were not added")
+                  << std::endl;
+        zip_discard(archive);   
     }
 }
+// inline void bundle_and_cleanup(const std::string& vtk_path, const std::string& json_path, const std::string& extra_path = "") {
+//     std::string zip_path = vtk_path.substr(0, vtk_path.size() - 4) + ".zip";
+
+//     int zerr = 0;
+//     zip_t* archive = zip_open(zip_path.c_str(), ZIP_CREATE | ZIP_TRUNCATE, &zerr);
+//     if (!archive) {
+//         std::cerr << "Failed to create zip: " << zip_path << std::endl;
+//         return;
+//     }
+
+//     // Add VTK file with max compression
+//     zip_source_t* src = zip_source_file(archive, vtk_path.c_str(), 0, -1);
+//     if (src) {
+//         auto idx = zip_file_add(archive, std::filesystem::path(vtk_path).filename().c_str(), src, ZIP_FL_OVERWRITE);
+//         zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
+//     }
+
+//     // Add JSON file if provided
+//     if (!json_path.empty()) {
+//         zip_source_t* jsrc = zip_source_file(archive, json_path.c_str(), 0, -1);
+//         if (jsrc) {
+//             auto idx = zip_file_add(archive, std::filesystem::path(json_path).filename().c_str(), jsrc, ZIP_FL_OVERWRITE);
+//             zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
+//         }
+//     }
+
+//     // zip_close is where the actual compression and writing happens.
+//     // Only delete originals if the zip was written successfully.
+//     if (zip_close(archive) == 0) {
+//         std::filesystem::remove(vtk_path);
+//         if (!json_path.empty()) std::filesystem::remove(json_path);
+//     } else {
+//         std::cerr << "zip_close failed for: " << zip_path << std::endl;
+//     }
+// }
 
 // Merge multiple small zip files into one final zip archive,
 // then delete the small zips. Uses ZIP_FL_COMPRESSED to copy
