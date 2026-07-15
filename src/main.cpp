@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
 
 				// mobility
 				auto cls = array3d::to_cube_mobility(cube);
-				cls_path = base + "_class." + output_format;
+				cls_path = base + "mobility." + output_format;
 				array3d::to_mat(cls_path.c_str(), cls, "mobility");
 			}
 
@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 
 				// mobility
 				auto cls = array3d::to_cube_mobility(cube);
-				cls_path = base + "_class." + output_format;
+				cls_path = base + "_mobility." + output_format;
 				array3d::to_mat(cls_path.c_str(), cls, "mobility");
 			}
 
