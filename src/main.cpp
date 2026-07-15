@@ -140,6 +140,15 @@ int main(int argc, char *argv[])
 	{
 		// Flip a voxel and store elapsed timesteps.
 		curr_step = cube->step();
+		// Debug condition for halting
+		// activity sum drifts to zero or negative so log duration never reaches
+		if (!std::isfinite(curr_step) || curr_step < 0) {
+			std::cerr << "DEBUG: step() returned dT=" << curr_step
+					<< " at T=" << timestep
+					<< ", A=" << cube->system_activity()
+					<< ", flips=" << cube->total_flips << std::endl;
+			break;
+		}
 
 		static double last = -1.0;
 		if (ramp_up_transition_count != last) {
@@ -151,6 +160,22 @@ int main(int argc, char *argv[])
 		timestep += curr_step;
 		log_duration += curr_step;
 		transition_duration += curr_step;
+
+		// DEBUG: loop spinning but timestep frozen
+		static uint64_t iters = 0;
+		static double t_mark = 0.0;
+		if (++iters % 100000000ULL == 0)
+		{
+			if (timestep <= t_mark) 
+			{
+				std::cerr << "DEBUG: no timestep progress over 1e8 iterations"
+				          << " (T=" << timestep
+				          << ", A=" << cube->system_activity()
+				          << ", flips=" << cube->total_flips << ")" << std::endl;
+				break;
+			}
+			t_mark = timestep;
+		}
 
 		// updates for ramp-up nucleaton rate
 		if (cfg.ramp_up_enabled) {
@@ -329,11 +354,6 @@ int main(int argc, char *argv[])
 			std::cout << "Max grain radius " << analyze.get_max_rad() << " >= " << 0.5 * min_side << ", stopping." << std::endl;
 			break;
 		}
-
-		//break; // testing 
-		// break if there are 5 grains left
-		// count how many grains are rleft
-
 	}
 
 	if (cfg.log_transitions) cube->stop_logging_transitions();
