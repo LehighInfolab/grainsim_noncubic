@@ -18,6 +18,8 @@ private:
 	lattice_t *curr_cube;
 
 	spin_t max_grains;
+	double max_radius = 0.0;
+
 	spin_t calculate_max_grains()
 	{
 		spin_t max_so_far = 0;
@@ -156,6 +158,14 @@ private:
 
 					++vol_map[curr_id];
 				}
+		
+		// update max radius
+		max_radius = 0.0;
+		for (const auto& [id, vol] : vol_map) 
+		{
+			double r = std::cbrt((3.0 * (double)vol) /(4.0*3.141592653589793));
+			if (r > max_radius) { max_radius = r;}
+		}
 
 	}
 	// calculate all centroid
@@ -227,6 +237,8 @@ public:
 	size_t get_grain_count() const {
 		return vol_map.size();
 	}
+
+	double get_max_rad() const { return max_radius;}
 
 	void load_lattice(lattice_t *cube)
 	{
@@ -414,7 +426,7 @@ public:
 			}
 
 			// v = (4 * pi r^3 )/3
-			double eq_radius = std::cbrt((3.0 * vol) / (4.0 * 3.14));
+			double eq_radius = std::cbrt((3.0 * vol) / (4.0 * 3.141592653589793));
 
 			grains.push_back({
 				{"id",                (int)id},
