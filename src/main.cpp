@@ -104,6 +104,11 @@ int main(int argc, char *argv[])
 	cube->z_tolerance = cfg.z_prop_tolerance;	// for boundary range
 	cube->init();
 
+	//  the smallest grain dimension (so 256x256x512 would have a diameter of 256 voxels).
+	const coord_t min_side = std::min({cube->side_length_x,
+	                                   cube->side_length_y,
+	                                   cube->side_length_z});
+
 	// Generate the checkpoint list.
 	std::vector<double> checkpoints;
 	if (!cfg.checkpoints.empty())
@@ -129,11 +134,21 @@ int main(int argc, char *argv[])
 	// create small zips for every batch size
 	std::vector<std::string> small_zips;
 
+
 	// Main simulation loop.
 	while (true)
 	{
 		// Flip a voxel and store elapsed timesteps.
 		curr_step = cube->step();
+		// Debug condition for halting
+		// activity sum drifts to zero or negative so log duration never reaches
+		if (!std::isfinite(curr_step) || curr_step < 0) {
+			std::cerr << "DEBUG: step() returned dT=" << curr_step
+					<< " at T=" << timestep
+					<< ", A=" << cube->system_activity()
+					<< ", flips=" << cube->total_flips << std::endl;
+			break;
+		}
 
 		static double last = -1.0;
 		if (ramp_up_transition_count != last) {
@@ -145,6 +160,22 @@ int main(int argc, char *argv[])
 		timestep += curr_step;
 		log_duration += curr_step;
 		transition_duration += curr_step;
+
+		// DEBUG: loop spinning but timestep frozen
+		static uint64_t iters = 0;
+		static double t_mark = 0.0;
+		if (++iters % 100000000ULL == 0)
+		{
+			if (timestep <= t_mark) 
+			{
+				std::cerr << "DEBUG: no timestep progress over 1e8 iterations"
+				          << " (T=" << timestep
+				          << ", A=" << cube->system_activity()
+				          << ", flips=" << cube->total_flips << ")" << std::endl;
+				break;
+			}
+			t_mark = timestep;
+		}
 
 		// updates for ramp-up nucleaton rate
 		if (cfg.ramp_up_enabled) {
@@ -309,28 +340,25 @@ int main(int argc, char *argv[])
 		}
 
 		// Break if the max timestep is reached.
-		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) break;
+		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) {break;}
 
 		// break if grain size is less than 5
-		if (cfg.generate_analysis_files && analyze.get_grain_count() > 0 && analyze.get_grain_count() <= 5) {
+		if (cfg.generate_analysis_files && analyze.get_grain_count() > 0 && analyze.get_grain_count() <= 5)
+		{
 			std::cout << "Grain count reached " << analyze.get_grain_count() << ", stopping." << std::endl;
 			break;
 		}
 
-		//break; // testing 
-		// break if there are 5 grains left
-		// count how many grains are rleft
-
+		if (cfg.generate_analysis_files && analyze.get_max_rad() >= 0.5*min_side)
+		{
+			std::cout << "Max grain radius " << analyze.get_max_rad() << " >= " << 0.5 * min_side << ", stopping." << std::endl;
+			break;
+		}
 	}
 
 	if (cfg.log_transitions) cube->stop_logging_transitions();
 
-	// Close zip after the loop — this is when everything gets written
-	// if (zip_close(archive) < 0){
-	// 	std::cerr << "zip_close failed: " << zip_strerror(archive) << std::endl;
-	// }
-	// merge into large zip
-
+	// Merge all zips into one
 	std::cout << "Small zips to merge: " << small_zips.size() << std::endl;
 	for (const auto& z : small_zips){
 		std::cout << "  " << z << " exists=" << std::filesystem::exists(z) << std::endl;
