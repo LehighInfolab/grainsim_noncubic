@@ -26,6 +26,7 @@ William E. Frazier
 #include <set>
 #include <fstream>
 #include <algorithm>
+#include <vector>
 
 // An object representing a voxel lattice.
 class lattice_t
@@ -124,6 +125,12 @@ private:
 	{
 		//return (((activ_t)rand() / (activ_t)RAND_MAX) * (max - min)) + min;
 		return (rng_dis(rng_gen) * (max - min)) + min;
+	}
+
+	// uniform integer between 0 and n-1
+	size_t rng_index(size_t n)
+	{
+		return std::uniform_int_distribution<size_t>(0, n - 1)(rng_gen);
 	}
 
 	// Clear and recalculate the overall activity for a voxel.
@@ -493,7 +500,6 @@ public:
 
 		std::set<size_t> flip_indices;
 		std::set<size_t> propagate_indices;
-		// what does this do?????
 		boundary_tracker.remove_bad_boundaries();
 
 		if (count > boundary_tracker.total_boundary_count - boundary_tracker.transformed_boundary_count)
@@ -581,38 +587,77 @@ public:
 							size_t prop_num = boundary->junctions.size() * propagation_ratio;
 							if (propagation_ratio <= 0) prop_num = 1;
 
-							// !!! This does not choose a random junction, but just goes in order.
-							bool found_junc = false;
-							for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
+							// // !!! This does not choose a random junction, but just goes in order.
+							// bool found_junc = false;
+							// for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
+							// {
+							// 	if (!junc_iter->first->transformed)
+							// 	{
+							// 		transition_boundary(junc_iter->first);
+
+							// 		found_junc = true;
+							// 		++num_random_propagated;
+
+							// 		// This is a hack to early-stop propagation. It should be cleaner but I am very tired...
+							// 		if (num_random_propagated >= propagate_count)
+							// 		{
+							// 			propagate_iter = propagate_indices.end();
+							// 			--propagate_iter;
+							// 			break;
+							// 		}
+
+							// 		--prop_num;
+							// 		if(prop_num <= 0) break;
+							// 	}
+							// }
+
+							// if (!found_junc)
+							// {
+							// 	// This could cause problems if trans_count = total transformed boundary count...
+							// 	size_t new_prop_index = trans_count;
+							// 	while (propagate_indices.find(++new_prop_index) != propagate_indices.end());
+							// 	propagate_indices.insert(new_prop_index);
+							// }
+
+							// collect junctions then randomly pick
+							std::vector<boundary_t *> untrans_junctions;
+							untrans_junctions.reserve(boundary->junctions.size());
+							for (auto &j : boundary->junctions)
 							{
-								if (!junc_iter->first->transformed)
+								if (!j.first->transformed) {untrans_junctions.push_back(j.first);}
+							}
+							prop_num = std::min(prop_num, untrans_junctions.size());
+
+							// random select junctions and propagate
+							for(size_t k = 0; k < prop_num; ++k)
+							{
+								size_t j = k + rng_index(untrans_junctions.size() - k);
+								std::swap(untrans_junctions[k], untrans_junctions[j]);
+								//testing
+								//std::cout << "[jp]" << (j - k) << "\n";
+								transition_boundary(untrans_junctions[k]);
+								++num_random_propagated;
+
+								// This is a hack to early-stop propagation. It should be cleaner but I am very tired...
+								if (num_random_propagated >= propagate_count)
 								{
-									transition_boundary(junc_iter->first);
-
-									found_junc = true;
-									++num_random_propagated;
-
-									// This is a hack to early-stop propagation. It should be cleaner but I am very tired...
-									if (num_random_propagated >= propagate_count)
-									{
-										propagate_iter = propagate_indices.end();
-										--propagate_iter;
-										break;
-									}
-
-									--prop_num;
-									if(prop_num <= 0) break;
+									propagate_iter = propagate_indices.end();
+									--propagate_iter;
+									break;
 								}
 							}
-
-							if (!found_junc)
+							if (untrans_junctions.empty())
 							{
 								// This could cause problems if trans_count = total transformed boundary count...
 								size_t new_prop_index = trans_count;
 								while (propagate_indices.find(++new_prop_index) != propagate_indices.end());
-								propagate_indices.insert(new_prop_index);
+								// maybe this can fix the problems above??
+								if (new_prop_index < boundary_tracker.transformed_boundary_count)
+								{
+									propagate_indices.insert(new_prop_index);
+								}
+								
 							}
-
 							++propagate_iter;
 						}
 						++trans_count;
