@@ -704,15 +704,17 @@ public:
 				else if (!boundary->transformed && flip_iter != flip_indices.end())
 				{
 					// REVISION 1/28, test for different planes
-					if (!cross_zplane(boundary, z_tolerance)) {
-						continue;
-					}
+					// if (!cross_zplane(boundary, z_tolerance)) {
+					// 	continue;
+					// }
 					if (*flip_iter == untrans_count)
 					{
-						//std::cout << "Flip iter: " << *flip_iter << std::endl;
-						transition_boundary(boundary);
-
-						++num_random_flipped;
+						if (cross_zplane(boundary, z_tolerance))
+						{
+							//std::cout << "Flip iter: " << *flip_iter << std::endl;
+							transition_boundary(boundary);
+							++num_random_flipped;
+						}
 						++flip_iter;
 					}
 					++untrans_count;
