@@ -70,10 +70,48 @@ public:
 		// Walk the tree.
 		while (true)
 		{
+			// last non-zero sibling for overflow reset
+			int last_positive_node = -1;
+
 			while (current_node_activity() < rand_activ)
 			{
+				if (current_node_activity()> 0) {last_positive_node = curr_sibling;}
+
 				rand_activ -= current_node_activity();
-				next_on_level();
+
+				// next_on_level();
+				// if can't move to the next sibling
+				if (!next_on_level())
+				{
+					// overflow debug
+					static size_t overflow_count = 0;
+					++overflow_count;
+					std::cerr << "[Overflow #] " << overflow_count
+						<< " level = " << int(curr_level)
+						<< " sibling = " << int(curr_sibling)
+						<< " residual = " << rand_activ
+						<< " here=" << current_node_activity() << std::endl;
+					
+					// if (current_node_activity() <= 0)
+					// {
+					// 	std::cerr << "Octree overflow, stopping";
+					// 	std::exit(2);
+					// }
+					if (current_node_activity() >0) {break;}
+
+					if (last_positive_node >= 0)
+					{
+						std::cout << "Octree overflow, jumpling to last active sibling"
+								<< last_positive_node <<std::endl;
+
+						jump_to_sibling((unsigned char)last_positive_node);
+						break;
+					}
+
+					// whole row is zero but the parent says its nonzero, basically never happens?
+					std::cerr << "Overflow whole row is zero" << (int)curr_level << std::endl;
+					std::exit(113);
+				}
 			}
 			// If first_child() returns false then the current node was a leaf; walk is done.
 			if (!first_child())
@@ -96,6 +134,13 @@ public:
 					}
 					rand_activ -= voxel_list[vindex].activity;
 				}
+		// debug for leaf overflow 
+		static size_t leaf_ovf_n = 0;
+		++leaf_ovf_n;
+		std::cerr << "[Overflow leaf] #" << leaf_ovf_n
+				<< " residual=" << rand_activ
+				<< " leaf@(" << (parent_x + offset_x) << ","
+				<< (parent_y + offset_y) << "," << (parent_z + offset_z) << ")" << std::endl;
 	}
 
 	// Print out all of the activities stored on a level.
