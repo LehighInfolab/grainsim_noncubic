@@ -371,6 +371,7 @@ public:
 	{
 		activ_t rand_activ;
 		// Sometimes rand_activ is greater than system_activity() (I think), so this is a hack to prevent that.
+		// add-on fix in octree.h
 		do
 		{
 			rand_activ = rng(0, system_activity());
@@ -378,6 +379,7 @@ public:
 		} while (rand_activ >= system_activity());
 
 		coord_t vx, vy, vz;
+		// overflow happens here
 		find_voxel(rand_activ, &vx, &vy, &vz);
 
 		if (!voxel_at(vx, vy, vz)->activity)
