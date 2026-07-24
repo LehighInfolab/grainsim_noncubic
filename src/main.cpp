@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 	const coord_t min_side = std::min({cube->side_length_x,
 	                                   cube->side_length_y,
 	                                   cube->side_length_z});
+	bool cross_periodic = false;
 
 	// Generate the checkpoint list.
 	std::vector<double> checkpoints;
@@ -267,6 +268,7 @@ int main(int argc, char *argv[])
 			bundle_and_cleanup(out_path, json_path, cls_path);
 			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");
 
+			cross_periodic = cube->cross_periodic_boundary();
 			++vtkcount;
 			++curr_checkpoint;
 
@@ -335,6 +337,8 @@ int main(int argc, char *argv[])
 			bundle_and_cleanup(out_path, json_path, cls_path);
 			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");
 
+			// check if cross periodic boundary
+			cross_periodic = cube->cross_periodic_boundary();
 			++vtkcount;
 			next_checkpoint += cfg.checkpoint_interval;
 		}
@@ -342,6 +346,10 @@ int main(int argc, char *argv[])
 		// Break if the max timestep is reached.
 		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) {break;}
 
+		if (cross_periodic){
+			std::cout << "Crossed periodic boundary, stopping." << std::endl;
+			break;
+		}
 		// break if grain size is less than 5
 		if (cfg.generate_analysis_files && analyze.get_grain_count() > 0 && analyze.get_grain_count() <= 5)
 		{

@@ -63,6 +63,16 @@ struct boundary_tracker_t
 		return output;
 	}
 
+	// Read only find boundary bwteen two grains, return nullptr if boundary does not exist.
+	boundary_t *find_boundary(spin_t a, spin_t b) const
+	{
+		spin_t lo = std::min(a, b), hi = std::max(a,b);
+		auto sm = boundary_map.find(lo);
+		if (sm == boundary_map.end()) {return nullptr;}
+		auto lg = sm->second.find(hi);
+		return lg == sm->second.end() ? nullptr : lg->second;
+	}
+
 	// Forcefully delete the boundary between two grains.
 	void delete_boundary(spin_t a, spin_t b)
 	{
@@ -112,6 +122,13 @@ struct boundary_tracker_t
 	bool is_transformed(spin_t a, spin_t b)
 	{
 		return find_or_create_boundary(a, b)->transformed;
+	}
+
+	// read only version to check if the boundary between two grains is transformed
+	bool is_transformed_readonly(spin_t a, spin_t b) const
+	{
+		boundary_t *boundary = find_boundary(a, b);
+		return boundary && boundary->transformed;
 	}
 
 	// Add a voxel to a boundary and update that boundary's junctions.
