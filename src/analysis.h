@@ -372,7 +372,7 @@ public:
 				double curv_b = get_curvature(b, a);
 
 				// get Mobility and transformed info 
-				bool trans = curr_cube->boundary_tracker.is_transformed(a, b);
+				bool trans = curr_cube->boundary_tracker.is_transformed_readonly(a, b);
 				double mobility = trans ? curr_cube->transitioned_mobility : curr_cube->default_mobility;
 
 				// Velocity

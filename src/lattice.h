@@ -428,6 +428,42 @@ private:
 	}
 
 public:
+
+	// check if a boundary cross the periodic boundary
+	// True if a transformed boundary cross the periodic z plane: 
+	// - a voxel on the zmax plane has a neighbor on z=0
+	// - the two voxels belong to different grains
+	// - the boundary between those grains is transformed
+	bool cross_periodic_boundary()
+	{
+		coord_t zmax = side_length_z-1;
+
+		for (coord_t y = 0; y < side_length_y; ++y){
+			for (coord_t x = 0; x < side_length_x; ++x)
+			{
+				spin_t s = voxel_at(x, y, zmax)->spin;
+
+				// find neighbors
+				for (coord_t dy = -1; dy <=1; ++dy) {
+					for (coord_t dx = -1; dx <= 1; ++dx) {
+						coord_t wx = (x + dx + side_length_x) %side_length_x;
+						coord_t wy = (y + dy + side_length_y) %side_length_y;
+						spin_t ns = voxel_at(wx, wy, 0)->spin;
+
+						// check if belongs to different neighbor
+						if (ns == s) continue;
+
+						// boundary is transformed, break
+						if (boundary_tracker.is_transformed_readonly(s, ns)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	// Add-on: Check if a boundary cross the z-plane.
 	// z_tolerance is for floating points errror
 	// It needs: 1. a pair of adjacent voxels from different grain
