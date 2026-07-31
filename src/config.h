@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 
 #include "types.h"
 
@@ -37,6 +38,9 @@ struct config_t
 
 	// Half-width of the z-range for transitions
 	int z_prop_tolerance = 1;
+
+	// switch for stop on periodic boundary
+	bool stop_on_periodic_cross = false;
 
 	void checkpoints_to_vector(std::vector<double> *checkpoint_vector)
 	{
@@ -148,7 +152,7 @@ struct config_t
 			// add config: z axis
 			else if (key == "Z_PROP_PLANE"){
 				z_propagation_plane = std::stoi(value);
-				std::cout << "[INFO] Z_PROP_PLANE: " << z_propagation_plane << std::endl;
+				//std::cout << "[INFO] Z_PROP_PLANE: " << z_propagation_plane << std::endl;
 			}
 			else if (key == "TRANSITION_TIME_COUNT_INCREASE")
 			{
@@ -165,7 +169,11 @@ struct config_t
 			else if (key == "Z_PROP_TOLERANCE")
 			{
 				z_prop_tolerance = std::stod(value);
-				std::cout << "[INFO] Z_PROP_TOLERANCE: " << z_prop_tolerance << std::endl;
+				//std::cout << "[INFO] Z_PROP_TOLERANCE: " << z_prop_tolerance << std::endl;
+			}
+			else if (key == "STOP_ON_PERIODIC_CROSS")
+			{
+				stop_on_periodic_cross = value == "true";
 			}
 			else
 			{
@@ -191,5 +199,26 @@ struct config_t
 				output_folder.push_back('/');
 			}
 		}
+	}
+
+	// print config info
+	void print() const
+	{
+		std::cout << "[INFO] ===== Config =====" << std::endl;
+		std::cout << "[INFO] DEFAULT_MOBILITY             = " << default_mobility << std::endl;
+		std::cout << "[INFO] TRANSITIONED_MOBILITY        = " << transitioned_mobility << std::endl;
+		std::cout << "[INFO] TRANSITION_INTERVAL          = " << transition_interval << std::endl;
+		std::cout << "[INFO] TRANSITION_COUNT             = " << transition_count << std::endl;
+		std::cout << "[INFO] PROPAGATION_CHANCE           = " << propagation_chance << std::endl;
+		std::cout << "[INFO] PROPAGATION_RATIO            = " << propagation_ratio << std::endl;
+		std::cout << "[INFO] USE_POTENTIAL_ENERGY         = " << (use_potential_energy ? "true" : "false") << std::endl;
+		std::cout << "[INFO] Z_PROP_PLANE                 = " << z_propagation_plane << std::endl;
+		std::cout << "[INFO] Z_PROP_TOLERANCE             = " << z_prop_tolerance << std::endl;
+		std::cout << "[INFO] RAMP_UP_ENABLED              = " << (ramp_up_enabled ? "true" : "false") << std::endl;
+		std::cout << "[INFO] TRANSITION_TIME_COUNT_INCREASE = " << transition_time_count_increase << std::endl;
+		std::cout << "[INFO] HIGH_NUCLEATION_RATE_LIMIT   = " << high_nucleation_rate_limit << std::endl;
+		std::cout << "[INFO] STOP_ON_PERIODIC_CROSS        = " <<  (stop_on_periodic_cross ? "true" : "false") <<std::endl;
+		std::cout << "[INFO] Build: " << __DATE__ << " " << __TIME__ << std::endl;
+		std::cout << "[INFO] ==================" << std::endl;
 	}
 };

@@ -68,9 +68,9 @@ private:
 		{
 			PROB_ETERM_LOOKUP[de + NEIGH_COUNT] = exp((-de) / (kT));
 		}
-		std::cout << "Look up table x: " << NEIGHBOR_LOOKUP_X << std::endl;
-		std::cout << "Look up table y: " << NEIGHBOR_LOOKUP_X << std::endl;
-		std::cout << "Look up table z: " << NEIGHBOR_LOOKUP_X << std::endl;
+		// std::cout << "Look up table x: " << NEIGHBOR_LOOKUP_X << std::endl;
+		// std::cout << "Look up table y: " << NEIGHBOR_LOOKUP_X << std::endl;
+		// std::cout << "Look up table z: " << NEIGHBOR_LOOKUP_X << std::endl;
 		//sleep(5);
 	}
 
@@ -217,6 +217,7 @@ public:
 	//coord_t side_length;
 	int z_propagation_plane;
 	int z_tolerance;
+	bool debug_enabled;
 
 	// An array of all voxels within the lattice.
 	voxel_t *voxels;
@@ -257,6 +258,7 @@ public:
 		// the z_plane that should be set for propagation
 		z_propagation_plane = 0;
 		z_tolerance = 1;
+		debug_enabled = false;
 
 		// Make the area managed by the octree have a side length equal to the next power of two after the real side length.
 		// The purpose is to prevent unexpected behavior from integer division (which I spent hours trying to debug...).
@@ -427,6 +429,17 @@ private:
 		}
 	}
 
+	// DEBUG: z summary of a boundary's voxel set
+	void debug_z_summary(boundary_t *b, double *zmean, coord_t *zmin, coord_t *zmax)
+	{
+		double zsum = 0; coord_t lo = side_length_z, hi = -1;
+		for (auto idx : b->boundary_voxel_indices) {
+			coord_t x, y, z; from_index(idx, &x, &y, &z);
+			zsum += z; if (z < lo) lo = z; if (z > hi) hi = z;
+		}
+		size_t n = b->boundary_voxel_indices.size();
+		*zmean = n ? zsum / n : -1; *zmin = lo; *zmax = hi;
+	}
 public:
 
 	// check if a boundary cross the periodic boundary
@@ -536,9 +549,25 @@ public:
 	{
 		std::cout << "Transitioning " << count << " boundaries..." << std::endl;
 
+
 		std::set<size_t> flip_indices;
-		std::set<size_t> propagate_indices;
+		//std::set<size_t> propagate_indices;
 		boundary_tracker.remove_bad_boundaries();
+
+		// static int dbg_gate = 0;
+		// if (dbg_gate++ % 10 == 0) {
+		// 	size_t pos = 0;
+		// 	std::cout << "[dbg-front]";
+		// 	for (auto &sm : boundary_tracker.boundary_map) {
+		// 		for (auto &lg : sm.second) {
+		// 			double zm; coord_t zlo, zhi; debug_z_summary(lg.second, &zm, &zlo, &zhi);
+		// 			std::cout << ' ' << (lg.second->transformed ? 'T' : '.') << (int)zm;
+		// 			if (++pos >= 40) break;
+		// 		}
+		// 		if (pos >= 40) break;
+		// 	}
+		// 	std::cout << '\n';
+		// }
 
 		if (count > boundary_tracker.total_boundary_count - boundary_tracker.transformed_boundary_count)
 		{
@@ -579,14 +608,18 @@ public:
 		// }
 		// std::cout << "\n Total flip indices: " << flip_indices.size() << std::endl;
 
-		for (size_t i = 0; i < propagate_count; ++i)
-		{
-			do
-			{
-				index = rng(0, boundary_tracker.transformed_boundary_count);
-			} while (propagate_indices.find(index) != propagate_indices.end());
-			propagate_indices.insert(index);
-		}
+		// for (size_t i = 0; i < propagate_count; ++i)
+		// {
+		// 	do
+		// 	{
+		// 		index = rng(0, boundary_tracker.transformed_boundary_count);
+		// 	} while (propagate_indices.find(index) != propagate_indices.end());
+		// 	propagate_indices.insert(index);
+		// }
+
+		// std::cout << "[dbg-prop] drawn:";
+		// for (auto i : propagate_indices) std::cout << ' ' << i;
+		// std::cout << " (range 0.." << boundary_tracker.transformed_boundary_count - 1 << ")\n";
 		// debug purpose
 		// std::cout << "Propagate indices: " << std::endl;
 		// for (auto propagate_index : propagate_indices) {
@@ -598,12 +631,63 @@ public:
 		// }
 		// std::cout << "\n Total propagate indices: " << propagate_indices.size() << std::endl;
 		size_t num_random_propagated = 0, num_random_flipped = 0, num_poteng_propagated = 0;
+		
+		// FIX: collect all transformed boundary into a vector then draw uniformly one at a time until all prop count are used
+		std::vector<boundary_t *> transformed_pool;
+		transformed_pool.reserve(boundary_tracker.transformed_boundary_count);
+		for (auto &sm : boundary_tracker.boundary_map)
+			for (auto &lg : sm.second)
+				if (lg.second->transformed) transformed_pool.push_back(lg.second);
+
+		size_t budget = propagate_count, k =0;
+		while (budget > 0 && k < transformed_pool.size())
+		{
+			// draw one boundary
+			size_t j = k +rng_index(transformed_pool.size()-k);
+			std::swap(transformed_pool[k], transformed_pool[j]);
+			boundary_t *b = transformed_pool[k];
+			++k;
+			// debug 
+			if (debug_enabled)
+			{				
+				double zm; coord_t zlo, zhi; debug_z_summary(b, &zm, &zlo, &zhi);
+				std::cout << "[DEBUG-prop] executed b=" << b->a_spin << '-' << b->b_spin
+						<< " zmean=" << zm << " z=[" << zlo << ',' << zhi << "]\n";
+			}
+			
+			size_t prop_num = b->junctions.size()*propagation_ratio;
+			if (propagation_ratio <= 0) prop_num = 1;
+			if (prop_num > budget) prop_num = budget;
+
+			// collect junctions then randomly pick
+			std::vector<boundary_t *> untrans_junctions;
+			untrans_junctions.reserve(b->junctions.size());
+			for (auto &jn : b->junctions)
+			{
+				if (!jn.first->transformed) {untrans_junctions.push_back(jn.first);}
+			}
+			prop_num = std::min(prop_num, untrans_junctions.size());
+
+			// random select junctions and propagate
+			// if all junctions are transformed, move on to the next draw
+			for(size_t m = 0; m< prop_num; ++m)
+			{
+				size_t r = m + rng_index(untrans_junctions.size() - m);
+				std::swap(untrans_junctions[m], untrans_junctions[r]);
+				//testing
+				//std::cout << "[jp]" << (r - m) << "\n";
+				transition_boundary(untrans_junctions[m]);
+				++num_random_propagated;
+				--budget;
+			}
+
+		}
 
 		bool end_loop = false;
-		std::set<size_t>::iterator flip_iter = flip_indices.begin(), propagate_iter = propagate_indices.begin();
+		std::set<size_t>::iterator flip_iter = flip_indices.begin();//, propagate_iter = propagate_indices.begin();
 
 		// These count the number of transformed and untransformed boundaries come across so far.
-		size_t untrans_count = 0, trans_count = 0;
+		size_t untrans_count = 0;//, trans_count = 0;
 
 		// Iterate over the entire boundary map.
 		for (auto sm_iter = boundary_tracker.boundary_map.begin(); sm_iter != boundary_tracker.boundary_map.end(); ++sm_iter)
@@ -618,88 +702,67 @@ public:
 				// If the boundary is transformed, check if we should propagate from it.
 				if (boundary->transformed)
 				{
-					if (propagate_iter != propagate_indices.end())
-					{
-						if (*propagate_iter == trans_count)
-						{
-							size_t prop_num = boundary->junctions.size() * propagation_ratio;
-							if (propagation_ratio <= 0) prop_num = 1;
+					// if (propagate_iter != propagate_indices.end())
+					// {
+					// 	if (*propagate_iter == trans_count)
+					// 	{
+					// 		double zm; coord_t zlo, zhi; debug_z_summary(boundary, &zm, &zlo, &zhi);
+					// 		std::cout << "[dbg-prop] executed idx=" << trans_count << " b=" << boundary->a_spin << '-'
+					// 				<< boundary->b_spin << " zmean=" << zm << " z=[" << zlo << ',' << zhi << "]\n";
 
-							// // !!! This does not choose a random junction, but just goes in order.
-							// bool found_junc = false;
-							// for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
-							// {
-							// 	if (!junc_iter->first->transformed)
-							// 	{
-							// 		transition_boundary(junc_iter->first);
+					// 		size_t prop_num = boundary->junctions.size() * propagation_ratio;
+					// 		if (propagation_ratio <= 0) prop_num = 1;
 
-							// 		found_junc = true;
-							// 		++num_random_propagated;
+					// 		// collect junctions then randomly pick
+					// 		std::vector<boundary_t *> untrans_junctions;
+					// 		untrans_junctions.reserve(boundary->junctions.size());
+					// 		for (auto &j : boundary->junctions)
+					// 		{
+					// 			if (!j.first->transformed) {untrans_junctions.push_back(j.first);}
+					// 		}
+					// 		prop_num = std::min(prop_num, untrans_junctions.size());
 
-							// 		// This is a hack to early-stop propagation. It should be cleaner but I am very tired...
-							// 		if (num_random_propagated >= propagate_count)
-							// 		{
-							// 			propagate_iter = propagate_indices.end();
-							// 			--propagate_iter;
-							// 			break;
-							// 		}
+					// 		// random select junctions and propagate
+					// 		for(size_t k = 0; k < prop_num; ++k)
+					// 		{
+					// 			size_t j = k + rng_index(untrans_junctions.size() - k);
+					// 			std::swap(untrans_junctions[k], untrans_junctions[j]);
+					// 			//testing
+					// 			//std::cout << "[jp]" << (j - k) << "\n";
+					// 			transition_boundary(untrans_junctions[k]);
+					// 			++num_random_propagated;
 
-							// 		--prop_num;
-							// 		if(prop_num <= 0) break;
-							// 	}
-							// }
+					// 			// This is a hack to early-stop propagation. It should be cleaner but I am very tired...
+					// 			// will cause higher z index to be selected
+					// 			if (num_random_propagated >= propagate_count)
+					// 			{
+					// 				std::cout << "[dbg-prop] EARLY-STOP " << num_random_propagated << "/" << propagate_count
+          			// 					<< ", remaining selections discarded\n";
+					// 				propagate_iter = propagate_indices.end();
+					// 				--propagate_iter;
+					// 				break;
+					// 			}
+					// 		}
+					// 		if (untrans_junctions.empty())
+					// 		{
+					// 			// This could cause problems if trans_count = total transformed boundary count...
 
-							// if (!found_junc)
-							// {
-							// 	// This could cause problems if trans_count = total transformed boundary count...
-							// 	size_t new_prop_index = trans_count;
-							// 	while (propagate_indices.find(++new_prop_index) != propagate_indices.end());
-							// 	propagate_indices.insert(new_prop_index);
-							// }
-
-							// collect junctions then randomly pick
-							std::vector<boundary_t *> untrans_junctions;
-							untrans_junctions.reserve(boundary->junctions.size());
-							for (auto &j : boundary->junctions)
-							{
-								if (!j.first->transformed) {untrans_junctions.push_back(j.first);}
-							}
-							prop_num = std::min(prop_num, untrans_junctions.size());
-
-							// random select junctions and propagate
-							for(size_t k = 0; k < prop_num; ++k)
-							{
-								size_t j = k + rng_index(untrans_junctions.size() - k);
-								std::swap(untrans_junctions[k], untrans_junctions[j]);
-								//testing
-								//std::cout << "[jp]" << (j - k) << "\n";
-								transition_boundary(untrans_junctions[k]);
-								++num_random_propagated;
-
-								// This is a hack to early-stop propagation. It should be cleaner but I am very tired...
-								if (num_random_propagated >= propagate_count)
-								{
-									propagate_iter = propagate_indices.end();
-									--propagate_iter;
-									break;
-								}
-							}
-							if (untrans_junctions.empty())
-							{
-								// This could cause problems if trans_count = total transformed boundary count...
-								size_t new_prop_index = trans_count;
-								while (propagate_indices.find(++new_prop_index) != propagate_indices.end());
-								// maybe this can fix the problems above??
-								if (new_prop_index < boundary_tracker.transformed_boundary_count)
-								{
-									propagate_indices.insert(new_prop_index);
-								}
+					// 			size_t new_prop_index = trans_count;
+					// 			while (propagate_indices.find(++new_prop_index) != propagate_indices.end());
+					// 			std::cout << "[dbg-prop] saturated b=" << boundary->a_spin << '-' << boundary->b_spin
+					// 					<< " reroll->" << new_prop_index
+					// 					<< (new_prop_index < boundary_tracker.transformed_boundary_count ? "" : " (dropped)") << "\n";
+					// 			// maybe this can fix the problems above??
+					// 			if (new_prop_index < boundary_tracker.transformed_boundary_count)
+					// 			{
+					// 				propagate_indices.insert(new_prop_index);
+					// 			}
 								
-							}
-							++propagate_iter;
-						}
-						++trans_count;
-					}
+					// 		}
+					// 		++propagate_iter;
+					// 	}
+					// 	++trans_count;
+					// }
 
 					if (use_potential_energy)
 					{
@@ -738,6 +801,7 @@ public:
 						boundary->previous_surface_area = boundary->area();
 					}
 				}
+
 				// If the boundary is untransformed, check if we should flip it.
 				else if (!boundary->transformed && flip_iter != flip_indices.end())
 				{
@@ -748,8 +812,14 @@ public:
 					if (*flip_iter == untrans_count)
 					{
 						if (cross_zplane(boundary, z_tolerance))
+						//if(true)
 						{
 							//std::cout << "Flip iter: " << *flip_iter << std::endl;
+							if(debug_enabled){
+								double zm; coord_t zlo, zhi; debug_z_summary(boundary, &zm, &zlo, &zhi);
+								std::cout << "[dbg-flip] idx=" << untrans_count << " b=" << boundary->a_spin << '-'
+									<< boundary->b_spin << " zmean=" << zm << "\n";
+								}
 							transition_boundary(boundary);
 							++num_random_flipped;
 						}
@@ -758,7 +828,12 @@ public:
 					++untrans_count;
 				}
 				// If we have exhausted the flip and propagate lists, end the loop.
-				else if (flip_iter == flip_indices.end() && propagate_iter == propagate_indices.end())
+				// else if (flip_iter == flip_indices.end() && propagate_iter == propagate_indices.end())
+				// {
+				// 	end_loop = true;
+				// 	break;
+				// }
+				else if(!use_potential_energy)
 				{
 					end_loop = true;
 					break;

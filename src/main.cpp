@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
 	std::string init_override;
 	std::string out_override;
 	std::string output_format = "vtk";
+	bool debug_enabled = false;
 
 	int transition_override = -1;   // -1 = don't override
 
@@ -62,6 +63,7 @@ int main(int argc, char *argv[])
 		}
 		// override for mat format
 		else if (arg == "--format" && i+1 < argc) { output_format = argv[++i]; }
+		else if (arg == "--debug") {debug_enabled = true;}
 		else {
 			std::cerr << "Unknown or incomplete argument: " << arg << "\n\n";
 			print_usage();
@@ -72,13 +74,14 @@ int main(int argc, char *argv[])
 	config_t cfg;
 	std::cout << "Loading: " << cfg.initial_state_path << std::endl;
 	cfg.load_config(config_path, init_override, out_override, transition_override);
-
-	std::cout << "ramp_up_enabled=" << cfg.ramp_up_enabled
-          << " transition_count=" << cfg.transition_count
-          << " transition_time_count_increase=" << cfg.transition_time_count_increase
-          << " high_nucleation_rate_limit=" << cfg.high_nucleation_rate_limit
-          << " transition_interval=" << cfg.transition_interval
-          << "\n";
+	cfg.print();
+	std::cout << "[INFO] debug = " << (debug_enabled ? "on" : "off") << std::endl;
+	// std::cout << "ramp_up_enabled=" << cfg.ramp_up_enabled
+    //       << " transition_count=" << cfg.transition_count
+    //       << " transition_time_count_increase=" << cfg.transition_time_count_increase
+    //       << " high_nucleation_rate_limit=" << cfg.high_nucleation_rate_limit
+    //       << " transition_interval=" << cfg.transition_interval
+    //       << "\n";
 
 	// Create the lattice from file.
 	lattice_t *cube;
@@ -102,6 +105,7 @@ int main(int argc, char *argv[])
 	cube->grain_count = cfg.const_grain_count;
 	cube->z_propagation_plane = cfg.z_propagation_plane;
 	cube->z_tolerance = cfg.z_prop_tolerance;	// for boundary range
+	cube->debug_enabled = debug_enabled;
 	cube->init();
 
 	//  the smallest grain dimension (so 256x256x512 would have a diameter of 256 voxels).
@@ -346,7 +350,7 @@ int main(int argc, char *argv[])
 		// Break if the max timestep is reached.
 		if (cfg.max_timestep > 0 && timestep >= cfg.max_timestep) {break;}
 
-		if (cross_periodic){
+		if (cfg.stop_on_periodic_cross && cross_periodic){
 			std::cout << "Crossed periodic boundary, stopping." << std::endl;
 			break;
 		}
