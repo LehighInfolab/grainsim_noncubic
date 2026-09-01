@@ -76,12 +76,6 @@ int main(int argc, char *argv[])
 	cfg.load_config(config_path, init_override, out_override, transition_override);
 	cfg.print();
 	std::cout << "[INFO] debug = " << (debug_enabled ? "on" : "off") << std::endl;
-	// std::cout << "ramp_up_enabled=" << cfg.ramp_up_enabled
-    //       << " transition_count=" << cfg.transition_count
-    //       << " transition_time_count_increase=" << cfg.transition_time_count_increase
-    //       << " high_nucleation_rate_limit=" << cfg.high_nucleation_rate_limit
-    //       << " transition_interval=" << cfg.transition_interval
-    //       << "\n";
 
 	// Create the lattice from file.
 	lattice_t *cube;
@@ -106,6 +100,7 @@ int main(int argc, char *argv[])
 	cube->z_propagation_plane = cfg.z_propagation_plane;
 	cube->z_tolerance = cfg.z_prop_tolerance;	// for boundary range
 	cube->debug_enabled = debug_enabled;
+	cube->sweep_selection = cfg.sweep_selection;
 	cube->init();
 
 	//  the smallest grain dimension (so 256x256x512 would have a diameter of 256 voxels).
@@ -302,10 +297,7 @@ int main(int argc, char *argv[])
 				vtk::to_vtk(out_path.c_str(), cube);
 			}
 			else{
-				// WRITE TO MAT
-				// array3d::cube3d_t vol = array3d::to_cube(cube);
-				// out_path = base + "." + output_format;
-				// array3d::to_mat(out_path.c_str(), vol);
+
 				auto vol = array3d::to_cube(cube);
 				out_path = base + "." + output_format;
 				array3d::to_mat(out_path.c_str(), vol);
@@ -331,12 +323,6 @@ int main(int argc, char *argv[])
 				json_path = ss.str();
 				analyze.save_analysis_to_json(json_path.c_str(), timestep);
 
-				// // Add JSON to zip
-				// zip_source_t* jsrc = zip_source_file(archive, json_path.c_str(), 0, -1);
-				// if (jsrc) {
-				// 	auto idx = zip_file_add(archive, std::filesystem::path(json_path).filename().c_str(), jsrc, ZIP_FL_OVERWRITE);
-				// 	zip_set_file_compression(archive, idx, ZIP_CM_DEFLATE, 9);
-				// }
 			}
 			bundle_and_cleanup(out_path, json_path, cls_path);
 			small_zips.push_back(out_path.substr(0, out_path.size() - 4) + ".zip");

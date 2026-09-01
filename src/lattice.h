@@ -218,6 +218,7 @@ public:
 	int z_propagation_plane;
 	int z_tolerance;
 	bool debug_enabled;
+	sweep_selection_t sweep_selection;
 
 	// An array of all voxels within the lattice.
 	voxel_t *voxels;
@@ -259,6 +260,7 @@ public:
 		z_propagation_plane = 0;
 		z_tolerance = 1;
 		debug_enabled = false;
+		sweep_selection = SWEEP_SMALLEST;
 
 		// Make the area managed by the octree have a side length equal to the next power of two after the real side length.
 		// The purpose is to prevent unexpected behavior from integer division (which I spent hours trying to debug...).
@@ -440,6 +442,27 @@ private:
 		size_t n = b->boundary_voxel_indices.size();
 		*zmean = n ? zsum / n : -1; *zmin = lo; *zmax = hi;
 	}
+
+	// helper function for sweeping mechanism
+	boundary_t *select_sweep_target(const std::vector<boundary_t *> &affordable_areas)
+	{
+		if (sweep_selection == SWEEP_RANDOM)
+		{
+			return affordable_areas[rng_index(affordable_areas.size())];
+		}
+		boundary_t *pick = affordable_areas[0];
+		for(size_t i = 1; i < affordable_areas.size(); i++)
+		{
+			size_t a = affordable_areas[i]->area(), best = pick->area();
+			if(sweep_selection == SWEEP_LARGEST ? a>best : a<best)
+			{
+				pick = affordable_areas[i];
+			}
+		}
+		return pick;
+
+	}
+
 public:
 
 	// check if a boundary cross the periodic boundary
@@ -680,28 +703,47 @@ public:
 								boundary->potential_energy = 0;
 							}
 
-							bool potential_propagation = true;
-							while (potential_propagation)
+							//bool potential_propagation = true;
+							std::vector<boundary_t *> affordable;
+							while (true)
 							{
-								potential_propagation = false;
-								boundary_t *smallest_junc = nullptr;
-
+								affordable.clear();
+								size_t bank = (size_t)boundary->potential_energy;
 								for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
 								{
-									if (!junc_iter->first->transformed)
-									{
-										if (smallest_junc == nullptr || smallest_junc->area() > junc_iter->first->area()) smallest_junc = junc_iter->first;
-									}
+									if (!junc_iter->first->transformed && junc_iter->first->area() <= bank)
+										affordable.push_back(junc_iter->first);
 								}
 
-								if (smallest_junc != nullptr && smallest_junc->area() <= boundary->potential_energy)
-								{
-									transition_boundary(smallest_junc);
-									boundary->potential_energy -= smallest_junc->area();
-									potential_propagation = true;
-									++num_poteng_propagated;
-								}
+								if (affordable.empty()) break;
+
+								boundary_t *pick = select_sweep_target(affordable);
+								transition_boundary(pick);
+								boundary->potential_energy -= pick->area();
+								++num_poteng_propagated;
 							}
+
+							// while (potential_propagation)
+							// {
+							// 	potential_propagation = false;
+							// 	boundary_t *smallest_junc = nullptr;
+
+							// 	for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
+							// 	{
+							// 		if (!junc_iter->first->transformed)
+							// 		{
+							// 			if (smallest_junc == nullptr || smallest_junc->area() > junc_iter->first->area()) smallest_junc = junc_iter->first;
+							// 		}
+							// 	}
+
+							// 	if (smallest_junc != nullptr && smallest_junc->area() <= boundary->potential_energy)
+							// 	{
+							// 		transition_boundary(smallest_junc);
+							// 		boundary->potential_energy -= smallest_junc->area();
+							// 		potential_propagation = true;
+							// 		++num_poteng_propagated;
+							// 	}
+							// }
 						}
 						boundary->previous_surface_area = boundary->area();
 					}

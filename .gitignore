@@ -22,3 +22,10 @@ sol_grainsim.sh
 /hdf5-*
 /archive*
 *.tar.gz
+
+# ignore local docker setup (local testing only)
+Dockerfile
+.dockerignore
+DOCKER.md
+/data
+*.tar

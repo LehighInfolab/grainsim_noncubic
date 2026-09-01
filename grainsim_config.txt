@@ -58,3 +58,6 @@ HIGH_NUCLEATION_RATE_LIMIT = 50
 
 # config for periodic boundary stop
 STOP_ON_PERIODIC_CROSS = false;
+
+# SWEEP_SELECTION Options: smallest, largest, random
+SWEEP_SELECTION = random

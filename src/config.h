@@ -42,6 +42,9 @@ struct config_t
 	// switch for stop on periodic boundary
 	bool stop_on_periodic_cross = false;
 
+	// default sweeping mechanism selection
+	sweep_selection_t sweep_selection = SWEEP_SMALLEST;
+
 	void checkpoints_to_vector(std::vector<double> *checkpoint_vector)
 	{
 		std::istringstream ss(checkpoints);
@@ -175,6 +178,12 @@ struct config_t
 			{
 				stop_on_periodic_cross = value == "true";
 			}
+			else if (key == "SWEEP_SELECTION")
+			{
+				if (value == "smallest") sweep_selection = SWEEP_SMALLEST;
+				else if (value == "largest")  sweep_selection = SWEEP_LARGEST;
+				else if (value == "random")   sweep_selection = SWEEP_RANDOM;
+			}
 			else
 			{
 				std::cout << "Warning: Unknown config key \"" << key << "\"." << std::endl;
@@ -212,6 +221,8 @@ struct config_t
 		std::cout << "[INFO] PROPAGATION_CHANCE           = " << propagation_chance << std::endl;
 		std::cout << "[INFO] PROPAGATION_RATIO            = " << propagation_ratio << std::endl;
 		std::cout << "[INFO] USE_POTENTIAL_ENERGY         = " << (use_potential_energy ? "true" : "false") << std::endl;
+		std::cout << "[INFO] SWEEP_SELECTION              = " << (sweep_selection == SWEEP_SMALLEST ? "smallest"
+			: sweep_selection == SWEEP_LARGEST  ? "largest" : "random") << std::endl;
 		std::cout << "[INFO] Z_PROP_PLANE                 = " << z_propagation_plane << std::endl;
 		std::cout << "[INFO] Z_PROP_TOLERANCE             = " << z_prop_tolerance << std::endl;
 		std::cout << "[INFO] RAMP_UP_ENABLED              = " << (ramp_up_enabled ? "true" : "false") << std::endl;
