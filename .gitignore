@@ -12,6 +12,8 @@
 
 # ignore testing 
 /test
+/tools
+*test.*
 
 # ignore shell script from sol 
 sol_grainsim.sh

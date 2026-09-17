@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <zip.h>
+#include <fstream>
 
 #include "vtk.h"
 #include "lattice.h"
@@ -17,6 +18,7 @@
 #include "analysis.h"
 #include "zip_utils.h"
 #include "array3d.h"
+#include "nucleation.h"
 
 
 // cd C:\Stuff\School\summer 2023\grainsim
@@ -128,12 +130,32 @@ int main(int argc, char *argv[])
 
 	// initialize transition_interval as the config file
 	double ramp_up_transition_count  = 0;
-	// for rampup updates
+	// for temperature based nucleation rate
+	double estimated_temperature = cfg.temp_ramp_enabled ? cfg.baseline_temperature : 0;
+	std::ofstream temperature_log;
+	if (cfg.temp_ramp_enabled)
+	{
+		temperature_log.open(cfg.output_folder + "temperature.txt");
+		temperature_log << "timestep\tcount\tT_est\n";
+	}
 	double next_transition_time = cfg.transition_interval;
 
 	// create small zips for every batch size
 	std::vector<std::string> small_zips;
 
+
+	//count for max temperature
+	double max_temperature_count = 0; // 0 = no temperature cap
+	if (cfg.temp_ramp_enabled && cfg.max_temperature > 0)
+	{
+		max_temperature_count = std::floor(nucleation::rate_from_temperature(cfg.max_temperature, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy));
+		if (max_temperature_count < 1)
+		{
+			std::cerr << "Error: MAX_TEMPERATURE " << cfg.max_temperature << " K allows fewer than one transition per interval.\n";
+			std::exit(1);
+		}
+		std::cout << "[INFO] MAX_TEMPERATURE " << cfg.max_temperature << " K caps the count at " << max_temperature_count << " per interval" << std::endl;
+	}
 
 	// Main simulation loop.
 	while (true)
@@ -189,26 +211,44 @@ int main(int argc, char *argv[])
 
 				next_transition_time += cfg.transition_interval;
 			}
-		} else {
+		} 
+		// discrete ramp up 		
+		else {
 			ramp_up_transition_count = cfg.transition_count;
 		}
 
 		// Debug logging.
 		if (log_duration >= 20000)
 		{
-			std::cout << "T = " << timestep << ", dT = " << curr_step << ", A = " << cube->system_activity() << ", Flips = " << cube->total_flips << ", tFlips = " << cube->transformed_flips << ", dTime = " << timer.lap() << " sec, tTime = " << timer.total() << " sec" << std::endl;
+			//std::cout << "T = " << timestep << ", dT = " << curr_step << ", A = " << cube->system_activity() << ", Flips = " << cube->total_flips << ", tFlips = " << cube->transformed_flips << ", dTime = " << timer.lap() << " sec, tTime = " << timer.total() << " sec" << std::endl;
+			std::cout << "T = " << timestep << ", dT = " << curr_step << ", A = " << cube->system_activity() << ", Flips = " << cube->total_flips << ", tFlips = " << cube->transformed_flips << ", dTime = " << timer.lap() << " sec, tTime = " << timer.total() << " sec";
+			if (cfg.temp_ramp_enabled) std::cout << ", T_est = " << estimated_temperature << " K";
+			std::cout << std::endl;
+
 			log_duration = 0;
 		}
 
 		// Transition some boundaries if applicable.
-		// if (transition_duration >= cfg.transition_interval && cfg.transition_count > 0)
-		if (transition_duration >= cfg.transition_interval && ramp_up_transition_count > 0)
+		if (transition_duration >=cfg.transition_interval && ramp_up_transition_count > 0)
 		{
+			// transition count held at the MAX_TEMPERATURE cap
+			double count = ramp_up_transition_count;
+			if (max_temperature_count > 0 && count > max_temperature_count) {count = max_temperature_count;}
+
 			std::cout << "Transition some boundaries if applicable." << std::endl;
 			if (cfg.log_transitions) cube->set_log_timestep(timestep);
+			cube->transition_boundaries(count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
 
-			//cube->transition_boundaries(cfg.transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
-			cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
+			// Estimated ramp up temperature
+			if (cfg.temp_ramp_enabled)
+			{
+				estimated_temperature = nucleation::temperature_from_rate(count, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy);
+				std::cout << "Estimated temperature: t = " << timestep << ", count = " << count << ", T_est = " << estimated_temperature << " K" << std::endl;
+				if (temperature_log.is_open()){
+					temperature_log << timestep << '\t' << count << '\t' << estimated_temperature << std::endl;
+				}
+			}
+
 			transition_duration = 0;
 		}
 
@@ -355,6 +395,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (cfg.log_transitions) cube->stop_logging_transitions();
+	if (temperature_log.is_open()) temperature_log.close();
 
 	// Merge all zips into one
 	std::cout << "Small zips to merge: " << small_zips.size() << std::endl;

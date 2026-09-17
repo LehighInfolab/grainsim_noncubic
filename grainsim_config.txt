@@ -20,7 +20,7 @@ DEFAULT_MOBILITY = 0.01
 TRANSITIONED_MOBILITY = 1
 
 # Nucleation Interval (in MCS)
-TRANSITION_INTERVAL = 50
+TRANSITION_INTERVAL = 5
 
 # Nucleation Rate (in GBs per "interval" MCS)
 TRANSITION_COUNT = 50
@@ -53,11 +53,27 @@ TRANSITION_TIME_COUNT_INCREASE = 10
 # switch to turn rampup on or off
 RAMP_UP_ENABLED = false
 
-# high nucleation rate limit (max transitions per interval)
-HIGH_NUCLEATION_RATE_LIMIT = 50
 
 # config for periodic boundary stop
 STOP_ON_PERIODIC_CROSS = false;
 
 # SWEEP_SELECTION Options: smallest, largest, random
 SWEEP_SELECTION = random
+
+# Temperature config
+# high nucleation rate limit (max transitions per interval)
+HIGH_NUCLEATION_RATE_LIMIT = 50
+
+TEMP_RAMP_ENABLED = true
+
+# baseline low temperature in kelvin T1
+BASELINE_TEMPERATURE = 1723
+
+# baseline low nucleation (eg 4 transitions)
+BASELINE_LOW_NUCLEATION = 4
+
+# nucleation activation energy ea in J/molK
+ACTIVATION_ENERGY = 384000
+
+# if there's no max temperature, leave it at 0
+MAX_TEMPERATURE = 0

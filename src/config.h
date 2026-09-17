@@ -36,6 +36,13 @@ struct config_t
 	// high nucleation rate limit
 	double high_nucleation_rate_limit = 0;
 
+	// temperature based nucleation
+	bool temp_ramp_enabled = false;
+	double baseline_temperature = 0;      // T1 in Kelvin
+	double baseline_low_nucleation = 0; // r1
+	double activation_energy = 0;         // Ea
+	double max_temperature = 0;           // Kelvin, 0 = no hold
+
 	// Half-width of the z-range for transitions
 	int z_prop_tolerance = 1;
 
@@ -184,6 +191,27 @@ struct config_t
 				else if (value == "largest")  sweep_selection = SWEEP_LARGEST;
 				else if (value == "random")   sweep_selection = SWEEP_RANDOM;
 			}
+			// add-ons for temperature
+			else if (key == "TEMP_RAMP_ENABLED")
+			{
+				temp_ramp_enabled = value == "true";
+			}
+			else if (key == "BASELINE_TEMPERATURE")
+			{
+				baseline_temperature = std::stod(value);
+			}
+			else if (key == "BASELINE_LOW_NUCLEATION")
+			{
+				baseline_low_nucleation = std::stod(value);
+			}
+			else if (key == "ACTIVATION_ENERGY")
+			{
+				activation_energy = std::stod(value);
+			}
+			else if (key == "MAX_TEMPERATURE")
+			{
+				max_temperature = std::stod(value);
+			}
 			else
 			{
 				std::cout << "Warning: Unknown config key \"" << key << "\"." << std::endl;
@@ -201,6 +229,27 @@ struct config_t
 		if (transition_count_override>= 0) {
 			transition_count = transition_count_override;
 		}
+		// override transition count
+		// if (transition_count_override >= 0) {
+		// 	if (temp_ramp_enabled) {
+		// 		baseline_low_nucleation = transition_count_override;
+		// 		std::cout << "[INFO] --transition-count overrides baseline_low_nucleation in temperature mode" << std::endl;
+		// 	} else {
+		// 		transition_count = transition_count_override;
+		// 	}
+		// }
+		// check temperature based nucleation settings
+		if (temp_ramp_enabled) {
+			if (baseline_temperature <= 0 || baseline_low_nucleation <= 0 || activation_energy <= 0) {
+				std::cerr << "Error: TEMP_RAMP_ENABLED needs positive BASELINE_TEMPERATURE, baseline_low_nucleation and ACTIVATION_ENERGY.\n";
+				std::exit(1);
+			}
+			if (max_temperature != 0 && max_temperature < baseline_temperature) {
+				std::cerr << "Error: MAX_TEMPERATURE must be 0 (no hold) or >= BASELINE_TEMPERATURE.\n";
+				std::exit(1);
+			}
+		}
+
 		// make sure ends with slash
 		if (!output_folder.empty()) {
 			char last = output_folder.back();
@@ -228,6 +277,13 @@ struct config_t
 		std::cout << "[INFO] RAMP_UP_ENABLED              = " << (ramp_up_enabled ? "true" : "false") << std::endl;
 		std::cout << "[INFO] TRANSITION_TIME_COUNT_INCREASE = " << transition_time_count_increase << std::endl;
 		std::cout << "[INFO] HIGH_NUCLEATION_RATE_LIMIT   = " << high_nucleation_rate_limit << std::endl;
+		// add on fir temeprature settings 
+		std::cout << "[INFO] TEMP_RAMP_ENABLED            = " << (temp_ramp_enabled ? "true" : "false") << std::endl;
+		std::cout << "[INFO] BASELINE_TEMPERATURE         = " << baseline_temperature << std::endl;
+		std::cout << "[INFO] BASELINE_LOW_NUCLEATION    = " << baseline_low_nucleation << std::endl;
+		std::cout << "[INFO] ACTIVATION_ENERGY            = " << activation_energy << std::endl;
+		std::cout << "[INFO] MAX_TEMPERATURE              = " << max_temperature << std::endl;
+
 		std::cout << "[INFO] STOP_ON_PERIODIC_CROSS        = " <<  (stop_on_periodic_cross ? "true" : "false") <<std::endl;
 		std::cout << "[INFO] Build: " << __DATE__ << " " << __TIME__ << std::endl;
 		std::cout << "[INFO] ==================" << std::endl;
