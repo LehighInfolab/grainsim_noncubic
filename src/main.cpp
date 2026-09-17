@@ -136,7 +136,8 @@ int main(int argc, char *argv[])
 	if (cfg.temp_ramp_enabled)
 	{
 		temperature_log.open(cfg.output_folder + "temperature.txt");
-		temperature_log << "timestep\tcount\tT_est\n";
+		temperature_log << "timestep\ttarget_T\traw_count\tused_count\tT_est\n";
+
 	}
 	double next_transition_time = cfg.transition_interval;
 
@@ -145,17 +146,17 @@ int main(int argc, char *argv[])
 
 
 	//count for max temperature
-	double max_temperature_count = 0; // 0 = no temperature cap
-	if (cfg.temp_ramp_enabled && cfg.max_temperature > 0)
-	{
-		max_temperature_count = std::floor(nucleation::rate_from_temperature(cfg.max_temperature, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy));
-		if (max_temperature_count < 1)
-		{
-			std::cerr << "Error: MAX_TEMPERATURE " << cfg.max_temperature << " K allows fewer than one transition per interval.\n";
-			std::exit(1);
-		}
-		std::cout << "[INFO] MAX_TEMPERATURE " << cfg.max_temperature << " K caps the count at " << max_temperature_count << " per interval" << std::endl;
-	}
+	// double max_temperature_count = 0; // 0 = no temperature cap
+	// if (cfg.temp_ramp_enabled && cfg.max_temperature > 0)
+	// {
+	// 	max_temperature_count = std::floor(nucleation::rate_from_temperature(cfg.max_temperature, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy));
+	// 	if (max_temperature_count < 1)
+	// 	{
+	// 		std::cerr << "Error: MAX_TEMPERATURE " << cfg.max_temperature << " K allows fewer than one transition per interval.\n";
+	// 		std::exit(1);
+	// 	}
+	// 	std::cout << "[INFO] MAX_TEMPERATURE " << cfg.max_temperature << " K caps the count at " << max_temperature_count << " per interval" << std::endl;
+	// }
 
 	// Main simulation loop.
 	while (true)
@@ -213,7 +214,7 @@ int main(int argc, char *argv[])
 			}
 		} 
 		// discrete ramp up 		
-		else {
+		else if (!cfg.temp_ramp_enabled) {
 			ramp_up_transition_count = cfg.transition_count;
 		}
 
@@ -229,28 +230,42 @@ int main(int argc, char *argv[])
 		}
 
 		// Transition some boundaries if applicable.
-		if (transition_duration >=cfg.transition_interval && ramp_up_transition_count > 0)
+		if (transition_duration >= cfg.transition_interval)
 		{
-			// transition count held at the MAX_TEMPERATURE cap
-			double count = ramp_up_transition_count;
-			if (max_temperature_count > 0 && count > max_temperature_count) {count = max_temperature_count;}
-
-			std::cout << "Transition some boundaries if applicable." << std::endl;
-			if (cfg.log_transitions) cube->set_log_timestep(timestep);
-			cube->transition_boundaries(count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
-
-			// Estimated ramp up temperature
+			// temperature ramp up
 			if (cfg.temp_ramp_enabled)
 			{
-				estimated_temperature = nucleation::temperature_from_rate(count, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy);
-				std::cout << "Estimated temperature: t = " << timestep << ", count = " << count << ", T_est = " << estimated_temperature << " K" << std::endl;
-				if (temperature_log.is_open()){
-					temperature_log << timestep << '\t' << count << '\t' << estimated_temperature << std::endl;
+				// tmperature at timestep t: T(t) = T1 + hr times t
+				double target_temperature = cfg.baseline_temperature + cfg.heating_rate * timestep;
+				// cap to max temerature 
+				if (cfg.max_temperature > 0 && target_temperature > cfg.max_temperature){
+					target_temperature = cfg.max_temperature;
 				}
+
+				// count that temperature needs
+				double raw_count = nucleation::rate_from_temperature(target_temperature, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy);
+				// capped at high nucleation rate limit 
+				double used_count = std::round(std::min(raw_count, cfg.high_nucleation_rate_limit));
+				ramp_up_transition_count = used_count;
+
+				// Temperature the rounded, capped count actually implies.
+				estimated_temperature = nucleation::temperature_from_rate(used_count, cfg.baseline_low_nucleation, cfg.baseline_temperature, cfg.activation_energy);
+
+				std::cout << "Temperature ramp: t = " << timestep << ", target T = " << target_temperature << " K"
+				          << ", raw count = " << raw_count << ", used count = " << used_count << ", T_est = " << estimated_temperature << " K" << std::endl;
+				if (temperature_log.is_open())
+					temperature_log << timestep << '\t' << target_temperature << '\t' << raw_count << '\t' << used_count << '\t' << estimated_temperature << std::endl;
 			}
 
+			if (ramp_up_transition_count > 0)
+			{
+				std::cout << "Transition some boundaries if applicable." << std::endl;
+				if (cfg.log_transitions) cube->set_log_timestep(timestep);
+				cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
+			}
 			transition_duration = 0;
 		}
+
 
 		//std::cout << "Current Timestep: " << timestep << std::endl;
 		// Check if VTK should be generated.

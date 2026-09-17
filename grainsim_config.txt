@@ -77,3 +77,6 @@ ACTIVATION_ENERGY = 384000
 
 # if there's no max temperature, leave it at 0
 MAX_TEMPERATURE = 0
+
+# heating rate 
+HEATING_RATE = 1
