@@ -103,6 +103,7 @@ int main(int argc, char *argv[])
 	cube->z_tolerance = cfg.z_prop_tolerance;	// for boundary range
 	cube->debug_enabled = debug_enabled;
 	cube->sweep_selection = cfg.sweep_selection;
+	cube->boundary_tracker.track_area_changes = cfg.use_potential_energy;	// update for sweep
 	cube->init();
 
 	//  the smallest grain dimension (so 256x256x512 would have a diameter of 256 voxels).
@@ -183,6 +184,11 @@ int main(int argc, char *argv[])
 		timestep += curr_step;
 		log_duration += curr_step;
 		transition_duration += curr_step;
+		if (cfg.use_potential_energy)
+		{
+			if (cfg.log_transitions) cube->set_log_timestep(timestep);
+			cube->sweep_changed_boundaries();
+		}
 
 		// DEBUG: loop spinning but timestep frozen
 		static uint64_t iters = 0;
@@ -261,7 +267,8 @@ int main(int argc, char *argv[])
 			{
 				std::cout << "Transition some boundaries if applicable." << std::endl;
 				if (cfg.log_transitions) cube->set_log_timestep(timestep);
-				cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
+				//cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio, cfg.use_potential_energy);
+				cube->transition_boundaries(ramp_up_transition_count, cfg.propagation_chance, cfg.propagation_ratio);
 			}
 			transition_duration = 0;
 		}

@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <list>
+#include <vector>
 
 #include "types.h"
 #include "config.h"
@@ -47,6 +48,11 @@ struct boundary_tracker_t
 
 	std::unordered_map<spin_t, std::unordered_map<spin_t, boundary_t *> > boundary_map;
 	size_t transformed_boundary_count = 0, total_boundary_count = 0;
+
+	// track area change for sweeping mechanism
+	bool track_area_changes = false;
+	std::vector<boundary_t *> changed_boundaries;
+	
 
 	// Find the boundary between two grains, or create it if it does not yet exist.
 	boundary_t *find_or_create_boundary(spin_t a, spin_t b)
@@ -144,6 +150,8 @@ struct boundary_tracker_t
 				boundary->incr_junction(find_or_create_boundary(a, voxel_neighbor_spins[i])); // assume that spin "a" is the root voxel
 			}
 		}
+		// update area
+		if (track_area_changes && boundary->transformed) changed_boundaries.push_back(boundary);
 	}
 	// Remove a voxel from a boundary and update that boundary's junctions.
 	void remove_from_boundary(spin_t a, spin_t b, size_t index, spin_t *voxel_neighbor_spins)
@@ -158,6 +166,7 @@ struct boundary_tracker_t
 				boundary->decr_junction(find_or_create_boundary(a, voxel_neighbor_spins[i])); // assume that spin "a" is the root grain
 			}
 		}
+		if (track_area_changes && boundary->transformed) changed_boundaries.push_back(boundary);
 	}
 
 	// Mark a boundary as transformed.

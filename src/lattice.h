@@ -32,6 +32,8 @@ William E. Frazier
 class lattice_t
 {
 private:
+
+	size_t num_poteng_propagated = 0;
 	// X, Y, and Z offsets for each neighbor 0-25.
 	// NEIGHBOR_LOOKUP tables allow for traversal of voxel neighbors within a one-dimensional loop.
 	char NEIGHBOR_LOOKUP_X[NEIGH_COUNT];
@@ -410,9 +412,9 @@ public:
 private:
 	void transition_boundary(boundary_t *boundary)
 	{
-		//cross_zplane(boundary);
 		boundary_tracker.mark_transformed(boundary);
-		//std::cout << "Boundaries between " << boundary->a_spin << " and " << boundary->b_spin << std::endl;
+		boundary->previous_surface_area = boundary->area();
+
 		// Update voxel activities and octree for all voxels on the boundary.
 		for (auto bvox_iter = boundary->boundary_voxel_indices.begin(); bvox_iter != boundary->boundary_voxel_indices.end(); ++bvox_iter)
 		{
@@ -463,7 +465,54 @@ private:
 
 	}
 
+	void sweep_boundary(boundary_t *boundary)
+	{
+		size_t area = boundary->area();
+		// no change
+		if (area == boundary->previous_surface_area) return;
+
+		// calculate area and update previous area
+		boundary->potential_energy += boundary->previous_surface_area - area;
+		if (boundary->potential_energy < 0)
+		{
+			boundary->potential_energy = 0;
+		}
+		
+		boundary->previous_surface_area = area;
+		if (boundary->potential_energy == 0) return;
+
+		// sweep
+		std::vector<boundary_t *> affordable;
+		while (true)
+		{
+			affordable.clear();
+			size_t bank = (size_t)boundary->potential_energy;
+			for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
+			{
+				boundary_t *neighbor = junc_iter->first;
+				if (!neighbor->transformed && junc_iter->second > 0 && neighbor->area() > 0 && neighbor->area() <= bank)
+					affordable.push_back(neighbor);
+			}
+
+			if (affordable.empty()) break;
+
+			boundary_t *pick = select_sweep_target(affordable);
+			transition_boundary(pick);
+			boundary->potential_energy -= pick->area();
+			++num_poteng_propagated;
+		}
+	}
+
 public:
+	void sweep_changed_boundaries()
+	{
+		std::vector<boundary_t *> &changed = boundary_tracker.changed_boundaries;
+		for (size_t i = 0; i < changed.size(); ++i)
+		{
+			sweep_boundary(changed[i]);
+		}
+		changed.clear();
+	}
 
 	// check if a boundary cross the periodic boundary
 	// True if a transformed boundary cross the periodic z plane: 
@@ -568,7 +617,7 @@ public:
 
 	// Transitition a certain number of random grain boundaries.
 	// Yes, I know this function is a mess. It can probably be simplified a bit...
-	void transition_boundaries(size_t count, double propagation_chance, double propagation_ratio, bool use_potential_energy)
+	void transition_boundaries(size_t count, double propagation_chance, double propagation_ratio)
 	{
 		std::cout << "Transitioning " << count << " boundaries..." << std::endl;
 
@@ -622,7 +671,7 @@ public:
 			flip_indices.insert(index);
 		}
 		
-		size_t num_random_propagated = 0, num_random_flipped = 0, num_poteng_propagated = 0;
+		size_t num_random_propagated = 0, num_random_flipped = 0;
 		
 		// PROPAGATION
 		// FIX: collect all transformed boundary into a vector then draw uniformly one at a time until all prop count are used
@@ -683,73 +732,73 @@ public:
 		//size_t untrans_count = 0;//, trans_count = 0;
 
 		// Iterate over the entire boundary map.
-		for (auto sm_iter = boundary_tracker.boundary_map.begin(); sm_iter != boundary_tracker.boundary_map.end(); ++sm_iter)
-		{
-			for (auto lg_iter = sm_iter->second.begin(); lg_iter != sm_iter->second.end(); ++lg_iter)
-			{
-				boundary_t *boundary = lg_iter->second;
+		// for (auto sm_iter = boundary_tracker.boundary_map.begin(); sm_iter != boundary_tracker.boundary_map.end(); ++sm_iter)
+		// {
+			// for (auto lg_iter = sm_iter->second.begin(); lg_iter != sm_iter->second.end(); ++lg_iter)
+			// {
+			// 	boundary_t *boundary = lg_iter->second;
 
 				// If the boundary is transformed, check if we should propagate from it.
-				if (boundary->transformed)
-				{
-					if (use_potential_energy)
-					{
-						// Potential energy propagation.
-						if (boundary->previous_surface_area != 0)
-						{
-							boundary->potential_energy += boundary->previous_surface_area - boundary->area();
-							if (boundary->potential_energy < 0)
-							{
-								boundary->potential_energy = 0;
-							}
+				// if (boundary->transformed)
+				// {
+					// if (use_potential_energy)
+					// {
+					// 	// Potential energy propagation.
+					// 	if (boundary->previous_surface_area != 0)
+					// 	{
+					// 		boundary->potential_energy += boundary->previous_surface_area - boundary->area();
+					// 		if (boundary->potential_energy < 0)
+					// 		{
+					// 			boundary->potential_energy = 0;
+					// 		}
 
-							//bool potential_propagation = true;
-							std::vector<boundary_t *> affordable;
-							while (true)
-							{
-								affordable.clear();
-								size_t bank = (size_t)boundary->potential_energy;
-								for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
-								{
-									if (!junc_iter->first->transformed && junc_iter->first->area() <= bank)
-										affordable.push_back(junc_iter->first);
-								}
+					// 		//bool potential_propagation = true;
+					// 		std::vector<boundary_t *> affordable;
+					// 		while (true)
+					// 		{
+					// 			affordable.clear();
+					// 			size_t bank = (size_t)boundary->potential_energy;
+					// 			for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
+					// 			{
+					// 				if (!junc_iter->first->transformed && junc_iter->first->area() <= bank)
+					// 					affordable.push_back(junc_iter->first);
+					// 			}
 
-								if (affordable.empty()) break;
+					// 			if (affordable.empty()) break;
 
-								boundary_t *pick = select_sweep_target(affordable);
-								transition_boundary(pick);
-								boundary->potential_energy -= pick->area();
-								++num_poteng_propagated;
-							}
+					// 			boundary_t *pick = select_sweep_target(affordable);
+					// 			transition_boundary(pick);
+					// 			boundary->potential_energy -= pick->area();
+					// 			++num_poteng_propagated;
+					// 		}
 
-							// while (potential_propagation)
-							// {
-							// 	potential_propagation = false;
-							// 	boundary_t *smallest_junc = nullptr;
+					// 		// while (potential_propagation)
+					// 		// {
+					// 		// 	potential_propagation = false;
+					// 		// 	boundary_t *smallest_junc = nullptr;
 
-							// 	for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
-							// 	{
-							// 		if (!junc_iter->first->transformed)
-							// 		{
-							// 			if (smallest_junc == nullptr || smallest_junc->area() > junc_iter->first->area()) smallest_junc = junc_iter->first;
-							// 		}
-							// 	}
+					// 		// 	for (auto junc_iter = boundary->junctions.begin(); junc_iter != boundary->junctions.end(); ++junc_iter)
+					// 		// 	{
+					// 		// 		if (!junc_iter->first->transformed)
+					// 		// 		{
+					// 		// 			if (smallest_junc == nullptr || smallest_junc->area() > junc_iter->first->area()) smallest_junc = junc_iter->first;
+					// 		// 		}
+					// 		// 	}
 
-							// 	if (smallest_junc != nullptr && smallest_junc->area() <= boundary->potential_energy)
-							// 	{
-							// 		transition_boundary(smallest_junc);
-							// 		boundary->potential_energy -= smallest_junc->area();
-							// 		potential_propagation = true;
-							// 		++num_poteng_propagated;
-							// 	}
-							// }
-						}
-						boundary->previous_surface_area = boundary->area();
-					}
-				}
-			}
-		}
+					// 		// 	if (smallest_junc != nullptr && smallest_junc->area() <= boundary->potential_energy)
+					// 		// 	{
+					// 		// 		transition_boundary(smallest_junc);
+					// 		// 		boundary->potential_energy -= smallest_junc->area();
+					// 		// 		potential_propagation = true;
+					// 		// 		++num_poteng_propagated;
+					// 		// 	}
+					// 		// }
+					// 	}
+					// 	boundary->previous_surface_area = boundary->area();
+					// }
+				// }
+			//}
+		//}
 		
 		// flip
 		std::vector<boundary_t *> flip_pool;
@@ -824,5 +873,6 @@ public:
 
 		std::cout << "Transitioned boundaries: " << boundary_tracker.transformed_boundary_count << " / " << boundary_tracker.total_boundary_count << " boundaries..." << std::endl;
 		std::cout << "# Transitioned via propagation: " << num_random_propagated << ", via random flipping: " << num_random_flipped << ", via potential energy: " << num_poteng_propagated << "..." << std::endl;
+		num_poteng_propagated = 0; // reset
 	}
 };
